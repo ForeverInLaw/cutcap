@@ -93,8 +93,10 @@ class ClipTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: TrackMetrics.labelGap),
-              SizedBox(
-                height: metrics.filmHeight,
+              // The film fills the tile, so it follows the tile's height
+              // as the film size animates (a reorder that changes the
+              // first clip changes the phone's film height).
+              Expanded(
                 child: Stack(
                   fit: StackFit.expand,
                   children: [

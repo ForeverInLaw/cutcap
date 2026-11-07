@@ -70,11 +70,19 @@ final class _Intents {
 /// phone layout, applying scroll and zoom to its window the way the editor
 /// does.
 class _Track extends StatefulWidget {
-  const _Track(this.intents, {this.window, this.selected});
+  const _Track(
+    this.intents, {
+    this.window,
+    this.selected,
+    this.reversed = false,
+    this.filmHeight = TimelineView.defaultFilmHeight,
+  });
 
   final _Intents intents;
   final TimelineWindow? window;
   final int? selected;
+  final bool reversed;
+  final double filmHeight;
 
   @override
   State<_Track> createState() => _TrackState();
@@ -86,16 +94,17 @@ class _TrackState extends State<_Track> {
 
   @override
   Widget build(BuildContext context) {
+    final clips = [
+      for (final (i, seconds) in [4, 3, 3].indexed)
+        ClipView(
+          id: ClipId(i),
+          name: 'clip$i.mp4',
+          duration: Duration(seconds: seconds),
+          isSelected: widget.selected == i,
+        ),
+    ];
     final state = EditorViewState(
-      clips: [
-        for (final (i, seconds) in [4, 3, 3].indexed)
-          ClipView(
-            id: ClipId(i),
-            name: 'clip$i.mp4',
-            duration: Duration(seconds: seconds),
-            isSelected: widget.selected == i,
-          ),
-      ],
+      clips: widget.reversed ? clips.reversed.toList() : clips,
       window: _window,
     );
     return MaterialApp(
@@ -112,6 +121,7 @@ class _TrackState extends State<_Track> {
               child: TimelineView(
                 state: state,
                 compact: true,
+                filmHeight: widget.filmHeight,
                 tie: const PlayheadTie(rise: 10, timeWidth: 100),
                 actions: widget.intents.actions(
                   onScroll: (delta) => setState(
@@ -252,6 +262,31 @@ void main() {
       );
     });
 
+    testWidgets('a pinch over the selected clip edge zooms, not trims', (
+      tester,
+    ) async {
+      await pumpTrack(tester, selected: 1);
+      final edge = Offset(tile(tester, 1).left, film(tester, 1).dy);
+      final left = await tester.startGesture(
+        edge - const Offset(30, 0),
+        kind: _touch,
+      );
+      final right = await tester.startGesture(
+        edge + const Offset(10, 0),
+        kind: _touch,
+      );
+      for (var i = 0; i < 6; i++) {
+        await left.moveBy(const Offset(-5, 0));
+        await right.moveBy(const Offset(5, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await left.up();
+      await right.up();
+
+      expect(intents.log, isEmpty);
+      expect(intents.zooms.fold(1.0, (a, b) => a * b.factor), lessThan(0.7));
+    });
+
     testWidgets('a tap selects the clip', (tester) async {
       await pumpTrack(tester);
       await tester.tapAt(film(tester, 2), kind: _touch);
@@ -299,6 +334,16 @@ void main() {
         closeTo(mouse.tolerance.inMicroseconds * 2, 1),
       );
     });
+  });
+
+  testWidgets('a reorder that grows the film keeps the film in its tile', (
+    tester,
+  ) async {
+    await pumpTrack(tester);
+    await tester.pumpWidget(_Track(intents, reversed: true, filmHeight: 150));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(tester.takeException(), isNull);
+    await tester.pumpAndSettle();
   });
 
   group('mouse', () {
