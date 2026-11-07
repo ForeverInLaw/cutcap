@@ -93,8 +93,10 @@ class ClipTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: TrackMetrics.labelGap),
-              SizedBox(
-                height: metrics.filmHeight,
+              // The film fills the tile, so it follows the tile's height
+              // as the film size animates (a reorder that changes the
+              // first clip changes the phone's film height).
+              Expanded(
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -318,7 +320,8 @@ class _Filmstrip extends StatelessWidget {
 }
 
 /// The field of a clip whose source file is missing: ink hatching with the
-/// problem named in words, or by icon alone when the clip is too narrow.
+/// problem named in words, by icon alone when the clip is too narrow, and
+/// by the hatching alone when even the icon does not fit.
 class _MissingFilm extends StatelessWidget {
   const _MissingFilm();
 
@@ -338,6 +341,10 @@ class _MissingFilm extends StatelessWidget {
         painter: _HatchPainter(tokens.ink),
         child: LayoutBuilder(
           builder: (context, constraints) {
+            // Too narrow even for the icon: the hatching alone says it.
+            if (iconSize + space.xs * 2 + 2 > constraints.maxWidth) {
+              return const SizedBox.shrink();
+            }
             final label = TextPainter(
               text: TextSpan(text: l10n.fileNotFound, style: style),
               textDirection: Directionality.of(context),

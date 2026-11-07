@@ -156,6 +156,10 @@
   "@retryExport": {
     "description": "Button that restarts a failed export."
   },
+  "moreActions": "More",
+  "@moreActions": {
+    "description": "Phone top bar button that opens a menu with the less frequent actions, such as Clear track."
+  },
   "clearTrack": "Clear track",
   "@clearTrack": {
     "description": "Button that removes every clip from the track; it can be undone."

@@ -35,6 +35,7 @@
   "exportTargetIsSource": "Выберите другой файл: этот используется в монтаже",
   "editIntact": "Монтаж не пострадал.",
   "retryExport": "Попробовать снова",
+  "moreActions": "Ещё",
   "clearTrack": "Очистить дорожку",
   "couldNotOpen": "{count, plural, one{Не удалось открыть видео {names}} few{Не удалось открыть {count} файла: {names}} many{Не удалось открыть {count} файлов: {names}} other{Не удалось открыть {count} файла: {names}}}"
 }

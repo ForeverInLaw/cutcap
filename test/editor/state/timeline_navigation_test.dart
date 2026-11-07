@@ -2,6 +2,7 @@ import 'package:cutcap/domain/editor_session.dart';
 import 'package:cutcap/editor/ruler.dart';
 import 'package:cutcap/editor/state/editor_controller.dart';
 import 'package:cutcap/editor/state/editor_state.dart';
+import 'package:cutcap/editor/state/timeline_gestures.dart';
 import 'package:cutcap/editor/state/view_state_provider.dart';
 import 'package:cutcap/media/media_probe.dart';
 import 'package:cutcap/player/preview_player.dart';
@@ -133,6 +134,82 @@ void main() {
       editor.select(container.read(sessionProvider).editList.clips.last.id);
       editor.deleteSelected();
       expect(window(), TimelineWindow(_ms(500), _ms(4000)));
+    });
+  });
+  group('touch', () {
+    /// One update of a touch pan or pinch on the track, sent the way the
+    /// track sends it.
+    void pinch({
+      required double fromX,
+      required double toX,
+      double fromScale = 1,
+      double toScale = 1,
+    }) {
+      final step = TrackPinch.between(
+        span: window().span,
+        trackWidth: _trackWidth,
+        fromX: fromX,
+        toX: toX,
+        fromScale: fromScale,
+        toScale: toScale,
+      );
+      editor.zoomTimeline(step.factor, step.anchor, _trackWidth);
+      editor.scrollTimeline(step.scroll);
+    }
+
+    test('spreading two fingers zooms in around them', () {
+      pinch(fromX: 600, toX: 600, toScale: 2);
+      expect(window(), TimelineWindow(_ms(1750), _ms(5250)));
+    });
+
+    test('one finger drags the zoomed track along with it', () {
+      zoom(0.25);
+      pinch(fromX: 600, toX: 400);
+      expect(
+        window(),
+        const TimelineWindow(
+          Duration(microseconds: 291667),
+          Duration(microseconds: 2041667),
+        ),
+      );
+    });
+
+    test(
+      'a pinch from the whole sequence keeps the time under the fingers',
+      () {
+        pinch(fromX: 600, toX: 500, toScale: 2);
+        expect(window().timeAt(500 / _trackWidth), _ms(3500));
+      },
+    );
+
+    test('the time between the fingers stays under them as they move', () {
+      zoom(0.5);
+      editor.scrollTimeline(const Duration(seconds: 2));
+      pinch(fromX: 300, toX: 600, toScale: 1.25);
+      expect(window(), TimelineWindow(_ms(1475), _ms(4275)));
+      expect(window().timeAt(600 / _trackWidth), _ms(2875));
+    });
+  });
+  group('dragging on the zoomed track', () {
+    test('a move that scrolled the track leaves it where it was dropped', () {
+      zoom(0.25);
+      final a = container.read(sessionProvider).editList.clips.first.id;
+      editor.beginReorder(a);
+      editor.scrollTimeline(_ms(5000));
+      editor.updateReorder(_ms(6800));
+      editor.endReorder();
+      expect(window(), TimelineWindow(_ms(5000), _ms(6750)));
+      expect(container.read(sessionProvider).editList.clips.last.id, a);
+    });
+
+    test('so does a trim', () {
+      zoom(0.25);
+      final a = container.read(sessionProvider).editList.clips.first.id;
+      editor.beginTrim(a, ClipEdge.outPoint);
+      editor.scrollTimeline(_ms(2000));
+      editor.updateTrim(_ms(-500));
+      editor.endTrim();
+      expect(window(), TimelineWindow(_ms(2000), _ms(3750)));
     });
   });
 }
