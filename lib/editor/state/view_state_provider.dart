@@ -7,6 +7,7 @@ import '../../domain/editor_session.dart';
 import '../editor_view_state.dart';
 import '../ruler.dart';
 import 'editor_state.dart';
+import 'thumbnails.dart';
 import 'timeline_zoom.dart';
 
 /// The track as the screen draws it. Rebuilt only when the edit, the
@@ -16,9 +17,11 @@ final clipViewsProvider = Provider<List<ClipView>>((ref) {
   final selected = ref.watch(selectionProvider);
   final edited = ref.watch(justEditedProvider);
   final missing = ref.watch(missingSourcesProvider);
+  final thumbnails = ref.watch(thumbnailCacheProvider);
   ClipView view(Clip clip) {
     final source = list.sourceOf(clip);
     final size = _displaySize(source);
+    final isMissing = missing.contains(clip.sourceId);
     return ClipView(
       id: clip.id,
       name: p.basename(source.path),
@@ -26,7 +29,10 @@ final clipViewsProvider = Provider<List<ClipView>>((ref) {
       aspectRatio: size.width / size.height,
       isSelected: clip.id == selected,
       isJustEdited: clip.id == edited,
-      isMissing: missing.contains(clip.sourceId),
+      isMissing: isMissing,
+      filmstrip: thumbnails == null || isMissing
+          ? null
+          : filmstripOf(thumbnails, clip, source),
     );
   }
 

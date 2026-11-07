@@ -97,7 +97,10 @@ void main() {
 
       zoom(100);
       await editor.addFiles([_c.path]);
-      expect(window(), const TimelineWindow(Duration.zero, Duration(seconds: 9)));
+      expect(
+        window(),
+        const TimelineWindow(Duration.zero, Duration(seconds: 9)),
+      );
     });
 
     test('the wheel scrolls the zoomed track', () {

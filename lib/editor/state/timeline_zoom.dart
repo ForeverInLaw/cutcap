@@ -25,7 +25,11 @@ final class TimelineZoom extends Notifier<TimelineWindow?> {
 
   /// Zooms by [factor] (below 1 zooms in) around [anchor], the fraction
   /// across a track [trackWidth] px wide where the cursor is.
-  void zoom(double factor, {required double anchor, required double trackWidth}) {
+  void zoom(
+    double factor, {
+    required double anchor,
+    required double trackWidth,
+  }) {
     final list = _list;
     final total = list.duration;
     if (list.clips.isEmpty) return;

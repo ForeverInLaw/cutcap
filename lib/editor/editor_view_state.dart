@@ -83,7 +83,7 @@ final class ClipView {
     required this.name,
     required this.duration,
     this.aspectRatio = 16 / 9,
-    this.thumbnails = const [],
+    this.filmstrip,
     this.isSelected = false,
     this.isJustEdited = false,
     this.isMissing = false,
@@ -99,8 +99,9 @@ final class ClipView {
   /// cells take this shape so thumbnails show whole.
   final double aspectRatio;
 
-  /// Filmstrip frames in source order; solid frames are drawn while empty.
-  final List<ImageProvider> thumbnails;
+  /// The thumbnail for each filmstrip cell; solid frames are drawn without
+  /// one and until it loads.
+  final FilmstripFrame? filmstrip;
 
   final bool isSelected;
 
@@ -110,6 +111,11 @@ final class ClipView {
   /// The source file is gone; the clip stays but is skipped at export.
   final bool isMissing;
 }
+
+/// The image for the filmstrip cell that starts [start] into the clip and
+/// spans [span] of it, [pixelHeight] device pixels tall.
+typedef FilmstripFrame =
+    ImageProvider Function(Duration start, Duration span, int pixelHeight);
 
 /// Where the export stands.
 sealed class ExportStatus {

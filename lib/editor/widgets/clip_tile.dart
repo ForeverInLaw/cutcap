@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -250,8 +252,10 @@ class _Marker extends StatelessWidget {
 }
 
 /// Frames across the clip, 1 px apart, each shaped like the source so
-/// thumbnails show whole. Thumbnails are sampled evenly; solid frames stand
-/// in until they load.
+/// thumbnails show whole. Each cell shows the frame [ClipView.filmstrip]
+/// gives for its span of the clip; the solid frame shows until it loads,
+/// and the previous picture stays while a cell's frame changes. Only cells
+/// in view are built, so any zoom costs the same.
 class _Filmstrip extends StatelessWidget {
   const _Filmstrip({
     required this.clip,
@@ -265,31 +269,46 @@ class _Filmstrip extends StatelessWidget {
   final double hiddenStart;
   final double filmWidth;
 
+  /// Thumbnails are rendered in steps of this many device pixels of height,
+  /// so small changes of the film height reuse them.
+  static const _heightStep = 16;
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final thumbnails = clip.thumbnails;
       final frameWidth = constraints.maxHeight * clip.aspectRatio;
-      final count = (filmWidth / frameWidth).ceil().clamp(1, 10000);
+      final count = (filmWidth / frameWidth).ceil();
       final first = (hiddenStart / frameWidth).floor();
-      final last = ((hiddenStart + constraints.maxWidth) / frameWidth).ceil();
+      final last = math.min(
+        count,
+        ((hiddenStart + constraints.maxWidth) / frameWidth).ceil(),
+      );
+      final span = clip.duration * (frameWidth / filmWidth);
+      final pixels =
+          constraints.maxHeight * MediaQuery.devicePixelRatioOf(context);
+      final pixelHeight = (pixels / _heightStep).ceil() * _heightStep;
+      final filmstrip = clip.filmstrip;
       return ClipRect(
         child: Stack(
           children: [
-            for (var i = first; i < last && i < count; i++)
+            for (var i = first; i < last; i++)
               Positioned(
                 left: i * frameWidth - hiddenStart,
                 top: 0,
                 bottom: 0,
                 width: frameWidth - 1,
-                child: thumbnails.isEmpty
-                    ? ColoredBox(color: frameColor)
-                    : Image(
-                        image: thumbnails[i * thumbnails.length ~/ count],
-                        fit: BoxFit.cover,
-                        excludeFromSemantics: true,
-                        gaplessPlayback: true,
-                      ),
+                child: ColoredBox(
+                  color: frameColor,
+                  child: filmstrip == null
+                      ? null
+                      : Image(
+                          image: filmstrip(span * i, span, pixelHeight),
+                          fit: BoxFit.cover,
+                          excludeFromSemantics: true,
+                          gaplessPlayback: true,
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                        ),
+                ),
               ),
           ],
         ),
