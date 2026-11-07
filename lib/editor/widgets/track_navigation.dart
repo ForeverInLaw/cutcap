@@ -45,7 +45,7 @@ class _TrackNavigationState extends State<TrackNavigation>
   /// Wheel travel (logical px) that doubles or halves the span.
   static const _doublingTravel = 240.0;
 
-  late final Ticker _glide = createTicker(_glideStep);
+  late final Ticker _glide;
   Simulation? _fling;
   double _flungTo = 0;
 
@@ -54,6 +54,12 @@ class _TrackNavigationState extends State<TrackNavigation>
   int _fingers = 0;
 
   double get _width => widget.trackWidth;
+
+  @override
+  void initState() {
+    super.initState();
+    _glide = createTicker(_glideStep);
+  }
 
   @override
   void dispose() {

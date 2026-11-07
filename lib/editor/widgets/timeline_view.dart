@@ -88,15 +88,21 @@ class _TimelineViewState extends State<TimelineView>
   TimelineWindow? _lastWindow;
   List<ClipView>? _lastClips;
   TrackSpace? _space;
-  late final TrackDrag _drag = TrackDrag(
-    vsync: this,
-    space: () => _space!,
-    actions: () => widget.actions,
-  );
+  late final TrackDrag _drag;
 
   EditorViewState get state => widget.state;
   EditorActions get actions => widget.actions;
   PlayheadTie get tie => widget.tie;
+
+  @override
+  void initState() {
+    super.initState();
+    _drag = TrackDrag(
+      vsync: this,
+      space: () => _space!,
+      actions: () => widget.actions,
+    );
+  }
 
   @override
   void dispose() {
