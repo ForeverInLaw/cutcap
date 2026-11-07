@@ -176,11 +176,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # Caches the Gradle home and, given the encryption key secret, the
-      # configuration cache (enabled in android/gradle.properties).
+      # Caches the Gradle home (wrapper, dependencies, build cache). No
+      # configuration cache: Flutter 3.44's Gradle plugin cannot be stored
+      # in it (its :app:DebugMinSdkCheck task holds a WeakHashMap).
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
-        with:
-          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
