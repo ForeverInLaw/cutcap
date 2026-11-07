@@ -23,3 +23,14 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+  # Golos Text, SIL OFL 1.1 (assets/fonts/golos_text/OFL.txt). Static instances from
+  # googlefonts/golos-text at cf2e272, the commit google/fonts pins for its variable build.
+  fonts:
+    - family: GolosText
+      fonts:
+        - asset: assets/fonts/golos_text/GolosText-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/golos_text/GolosText-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/golos_text/GolosText-Bold.ttf
+          weight: 700
