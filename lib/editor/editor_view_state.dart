@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+import '../domain/frame_rate.dart';
 import 'ruler.dart';
-import 'timecode.dart';
 
 /// What the editor screen shows, as plain immutable data. The screen renders
 /// it and reports intent through [EditorActions]; it owns no editing logic.

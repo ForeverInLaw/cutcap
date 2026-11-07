@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/cutcap_tokens.dart';
 import '../ruler.dart';
+import '../../domain/frame_rate.dart';
 import '../timecode.dart';
 import 'timecode_text.dart';
 
