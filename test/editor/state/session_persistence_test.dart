@@ -142,6 +142,20 @@ void main() {
       ]);
     });
 
+    test('is not opened in the preview', () async {
+      await editAndQuit();
+      onDisk.remove(_a.path);
+      player.calls.clear();
+
+      final container = launch();
+      final editor = container.read(editorControllerProvider);
+      await editor.restoreSession();
+      editor.seek(const Duration(seconds: 5));
+      await pumpEventQueue();
+
+      expect(player.calls, ['open ${_b.path}', 'seek 983334']);
+    });
+
     test('is noticed when it disappears or comes back later', () async {
       final container = launch();
       final editor = container.read(editorControllerProvider);
