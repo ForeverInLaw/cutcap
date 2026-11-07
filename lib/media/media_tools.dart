@@ -47,3 +47,10 @@ final class MediaToolLocator {
 
   static List<String> get _extensions => Platform.isWindows ? ['.exe'] : [''];
 }
+
+/// [time] as ffmpeg reads seconds, to the microsecond, e.g. `2.016667`.
+String ffmpegSeconds(Duration time) {
+  final us = time.inMicroseconds;
+  final fraction = (us % Duration.microsecondsPerSecond).toString();
+  return '${us ~/ Duration.microsecondsPerSecond}.${fraction.padLeft(6, '0')}';
+}
