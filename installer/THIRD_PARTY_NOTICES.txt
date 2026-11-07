@@ -1,0 +1,64 @@
+cutcap third-party notices
+==========================
+
+cutcap is free software under the GNU General Public License, version 3
+or (at your option) any later version. The full text is in LICENSE.txt
+next to this file. Source code: https://github.com/ForeverInLaw/cutcap
+
+This program comes with ABSOLUTELY NO WARRANTY, to the extent permitted
+by applicable law.
+
+The installed program also contains the following works by others.
+
+
+FFmpeg (ffmpeg.exe, ffprobe.exe)
+--------------------------------
+Version 9.0.2, the "essentials" Windows x64 build by Gyan Doshi, used
+unmodified. This build enables GPL components and is licensed under the
+GNU General Public License, version 3 (see LICENSE.txt).
+
+  FFmpeg source:     https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
+  Build and its configuration (enabled libraries and their versions):
+                     https://www.gyan.dev/ffmpeg/builds/
+                     https://github.com/GyanD/codexffmpeg/releases/tag/9.0.2
+  Project:           https://ffmpeg.org/legal.html
+
+FFmpeg is a trademark of Fabrice Bellard, originator of the FFmpeg project.
+
+
+mpv / libmpv (libmpv-2.dll)
+---------------------------
+libmpv from mpv commit 652a1dd90711839acdccc08004056d25514ef2d8, built by
+the media_kit project (release 2023-09-24 of libmpv-win32-video-build),
+used unmodified through the media_kit Flutter package. mpv and the
+libraries built into this DLL (FFmpeg among them) are distributed under
+the GNU General Public License, version 2 or later, which cutcap takes up
+under version 3 (see LICENSE.txt).
+
+  mpv source:        https://github.com/mpv-player/mpv/tree/652a1dd90711839acdccc08004056d25514ef2d8
+  Build scripts:     https://github.com/media-kit/libmpv-win32-video-build
+  Binary release:    https://github.com/media-kit/libmpv-win32-video-build/releases/tag/2023-09-24
+  mpv licensing:     https://github.com/mpv-player/mpv/blob/master/Copyright
+
+
+ANGLE and graphics runtime (libEGL.dll, libGLESv2.dll, d3dcompiler_47.dll,
+vk_swiftshader.dll, vulkan-1.dll, zlib.dll)
+-------------------------------------------------------------------------
+Bundled by media_kit for video output, from
+https://github.com/alexmercerind/flutter-windows-ANGLE-OpenGL-ES
+(release v1.0.1). ANGLE: BSD 3-Clause License (Google and the ANGLE
+project authors). SwiftShader and the Vulkan loader: Apache License 2.0.
+zlib: zlib License. d3dcompiler_47.dll: Microsoft redistributable.
+
+
+Golos Text font
+---------------
+Copyright 2019 The Golos Text Project Authors. SIL Open Font License 1.1;
+the license is in licenses\GolosText-OFL.txt.
+
+
+Flutter, Dart and Dart packages
+-------------------------------
+The Flutter engine, the Dart runtime and the Dart packages cutcap uses
+carry their own notices, collected by Flutter into
+data\flutter_assets\NOTICES.Z (a gzip-compressed text file).

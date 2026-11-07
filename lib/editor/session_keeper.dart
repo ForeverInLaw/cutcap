@@ -4,10 +4,12 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'state/editor_controller.dart';
+import 'state/editor_state.dart';
 
-/// Ties the session to the app's life: restores the saved edit when it
-/// starts, and rechecks the source files whenever the app comes back to
-/// the foreground, where the user may have moved or deleted some.
+/// Ties the session to the app's life: at start it restores the saved edit
+/// and appends the files the app was opened with, and it rechecks the
+/// source files whenever the app comes back to the foreground, where the
+/// user may have moved or deleted some.
 class SessionKeeper extends ConsumerStatefulWidget {
   const SessionKeeper({required this.child, super.key});
 
@@ -24,7 +26,7 @@ class _SessionKeeperState extends ConsumerState<SessionKeeper> {
   void initState() {
     super.initState();
     final editor = ref.read(editorControllerProvider);
-    unawaited(editor.restoreSession());
+    unawaited(editor.launch(ref.read(launchFilesProvider)));
     _lifecycle = AppLifecycleListener(
       onResume: () => unawaited(editor.checkSources()),
     );
