@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 
 import '../../domain/editor_session.dart';
 import '../../media/media_probe.dart';
@@ -51,20 +50,20 @@ final class EditorController {
   Future<void> addFiles(List<String> paths) async {
     if (paths.isEmpty || _locked) return;
     final probe = _ref.read(mediaProbeProvider);
-    Future<Source?> usable(String path) async {
+    // A file that fails is reported to the user by name; the rest of the
+    // batch goes on.
+    Future<({Source? source, String? problem})> probed(String path) async {
       try {
-        return await probe.probe(path);
-      } on MediaProbeException {
-        // Reported to the user by name below; the rest of the batch goes on.
-        return null;
+        return (source: await probe.probe(path), problem: null);
+      } on MediaProbeException catch (error) {
+        return (source: null, problem: error.name);
       }
     }
 
-    final results = await Future.wait(paths.map(usable));
-    final sources = results.nonNulls.toList();
+    final results = await Future.wait(paths.map(probed));
+    final sources = [for (final result in results) ?result.source];
     _ref.read(importProblemsProvider.notifier).set([
-      for (final (i, source) in results.indexed)
-        if (source == null) p.basename(paths[i]),
+      for (final result in results) ?result.problem,
     ]);
     // An export may have started while the files were probed.
     if (sources.isEmpty || _locked) return;

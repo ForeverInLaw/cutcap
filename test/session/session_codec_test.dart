@@ -71,6 +71,40 @@ void main() {
     expect(screen.videoBitRate, isNull);
   });
 
+  test('keeps the name of an Android video kept by content URI', () {
+    const uri =
+        'content://com.android.providers.media.documents/document/'
+        'video%3A42';
+    final shared = Source(
+      id: const SourceId(uri),
+      path: uri,
+      displayName: 'PXL_20261107.mp4',
+      duration: const Duration(seconds: 2),
+      resolution: (width: 1920, height: 1080),
+      rotation: 90,
+      frameRate: const FrameRate(30, 1),
+      hasAudio: true,
+    );
+    final saved = const EditorSession().addSources([shared, _screen]);
+
+    final sources = _roundTrip(saved).editList.sources;
+
+    expect(sources[shared.id]!.path, uri);
+    expect(sources[shared.id]!.name, 'PXL_20261107.mp4');
+    expect(sources[_screen.id]!.name, 'screen.mkv');
+  });
+
+  test('reads sessions saved before sources had a display name', () {
+    final json = jsonDecode(SessionCodec.encode(edited.editList)) as Map;
+    for (final source in json['sources'] as List) {
+      (source as Map).remove('displayName');
+    }
+
+    final sources = SessionCodec.decode(jsonEncode(json)).sources;
+
+    expect(sources[_phone.id]!.name, 'phone.mp4');
+  });
+
   test('keeps snapping to the NTSC grid after a restore', () {
     // 0.5 s into the sequence is 1.501 s of the phone clip, inside NTSC frame
     // 44, which starts at 1.468133 s.

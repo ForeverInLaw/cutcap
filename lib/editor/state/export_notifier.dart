@@ -68,7 +68,7 @@ final class ExportNotifier extends Notifier<ExportStatus> {
     if (list.clips.isEmpty || state is ExportRunning) return;
     final first = list.sourceOf(list.clips.first);
     final chosen = await ref.read(saveLocationProvider)(
-      '${p.basenameWithoutExtension(first.path)}-cut.mp4',
+      '${p.basenameWithoutExtension(first.name)}-cut.mp4',
     );
     if (chosen == null) return;
     // The Windows dialog returns a typed name as is.

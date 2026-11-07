@@ -4,14 +4,16 @@ import '../domain/editor_session.dart';
 
 /// The saved form of an [EditList]: versioned JSON holding the sources (as
 /// probed, so a restore needs no probing) and the clips in sequence order.
-/// Undo history is not part of it.
+/// Undo history is not part of it. `displayName` was added within version 1
+/// and may be absent.
 ///
 /// ```json
 /// {"version": 1,
 ///  "sources": [{"id": "C:/a.mp4", "path": "C:/a.mp4", "durationUs": 4000000,
 ///               "width": 1920, "height": 1080, "rotation": 0,
 ///               "frameRate": [30000, 1001], "averageFrameRate": null,
-///               "videoBitRate": null, "hasAudio": true}],
+///               "videoBitRate": null, "hasAudio": true,
+///               "displayName": null}],
 ///  "clips": [{"id": 0, "source": "C:/a.mp4", "inUs": 0, "outUs": 4000000}]}
 /// ```
 abstract final class SessionCodec {
@@ -80,6 +82,7 @@ abstract final class SessionCodec {
     },
     'videoBitRate': source.videoBitRate,
     'hasAudio': source.hasAudio,
+    'displayName': source.displayName,
   };
 
   static List<int> _rate(FrameRate rate) => [rate.numerator, rate.denominator];
@@ -114,6 +117,10 @@ abstract final class SessionCodec {
             ? null
             : _readRate(averageFrameRate),
         videoBitRate: videoBitRate,
+        displayName: switch (json['displayName']) {
+          final String name => name,
+          _ => null,
+        },
       );
     }
     throw FormatException('bad source: $json');
