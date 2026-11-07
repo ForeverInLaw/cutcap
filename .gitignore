@@ -45,3 +45,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 .claude/worktrees/
+.impeccable/mocks/
+.impeccable/review/
+.impeccable/build/
+.impeccable/config.local.json
