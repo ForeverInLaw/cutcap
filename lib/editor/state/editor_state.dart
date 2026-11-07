@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../domain/editor_session.dart';
 import '../../media/ffprobe_media_probe.dart';
@@ -9,6 +12,7 @@ import '../../media/media_probe.dart';
 import '../../player/media_kit_preview_player.dart';
 import '../../player/preview_player.dart';
 import '../../player/sequence_playback.dart';
+import '../../session/session_store.dart';
 
 /// The edit and its undo history.
 final sessionProvider = NotifierProvider<SessionNotifier, EditorSession>(
@@ -33,6 +37,27 @@ final playheadProvider = NotifierProvider<Slot<Duration>, Duration>(
 /// Which way the preview is playing.
 final transportProvider = NotifierProvider<Slot<Transport>, Transport>(
   () => Slot(Transport.paused),
+);
+
+/// Sources whose file is gone. Their clips stay on the track, marked, and
+/// are left out of the export.
+final missingSourcesProvider =
+    NotifierProvider<Slot<Set<SourceId>>, Set<SourceId>>(() => Slot(const {}));
+
+/// Where the session is autosaved: `session.json` in the app support
+/// directory.
+final sessionStoreProvider = Provider<SessionStore>(
+  (ref) => SessionStore(
+    () async => File(
+      p.join((await getApplicationSupportDirectory()).path, 'session.json'),
+    ),
+  ),
+);
+
+/// Whether a source file is still there; tests override it.
+final sourceExistsProvider = Provider<Future<bool> Function(String path)>(
+  (ref) =>
+      (path) => File(path).exists(),
 );
 
 /// Names of the files the last add could not open.
@@ -103,13 +128,34 @@ final class Slot<T> extends Notifier<T> {
 /// A drag is one undo step: [beginGesture] keeps the session as it was, each
 /// [trim] or [move] during the gesture is applied to that kept session
 /// rather than stacked on the last one, and [endGesture] lets go of it.
+///
+/// Once [restore] has run, every change of the edit list is saved to
+/// [sessionStoreProvider].
 final class SessionNotifier extends Notifier<EditorSession> {
   EditorSession? _gestureOrigin;
+  bool _autosaving = false;
 
   @override
-  EditorSession build() => const EditorSession();
+  EditorSession build() {
+    listenSelf((previous, next) {
+      if (_autosaving && !identical(previous?.editList, next.editList)) {
+        unawaited(ref.read(sessionStoreProvider).save(next.editList));
+      }
+    });
+    return const EditorSession();
+  }
 
   EditorSession get _base => _gestureOrigin ?? state;
+
+  /// Continues [saved] (when given and nothing has been edited yet) and
+  /// starts autosaving.
+  void restore(EditList? saved) {
+    final untouched = state.editList.clips.isEmpty && !state.canUndo;
+    if (saved != null && untouched) {
+      state = EditorSession.restored(saved);
+    }
+    _autosaving = true;
+  }
 
   void addSources(List<Source> sources) => state = state.addSources(sources);
   void split(Duration time) => state = state.split(time);

@@ -63,10 +63,40 @@ final class EditorController {
     final wasEmpty = _list.clips.isEmpty;
     _session.addSources(sources);
     if (wasEmpty) _seekTo(Duration.zero);
+    // Adding a missing file again brings its clips back.
+    if (_ref.read(missingSourcesProvider).isNotEmpty) await checkSources();
   }
 
   void dismissImportProblems() =>
       _ref.read(importProblemsProvider.notifier).set(const []);
+
+  // Session ----------------------------------------------------------------
+
+  /// Brings back the edit saved by the last run, flags sources whose file
+  /// is gone and from then on autosaves every edit. Called once at launch.
+  Future<void> restoreSession() async {
+    final saved = await _ref.read(sessionStoreProvider).load();
+    _session.restore(saved);
+    if (_list.clips.isEmpty) return;
+    await checkSources();
+    _seekTo(Duration.zero);
+  }
+
+  /// Rechecks that every source file is still there, e.g. when the app
+  /// comes back to the foreground; a file that came back is unflagged.
+  Future<void> checkSources() async {
+    final exists = _ref.read(sourceExistsProvider);
+    final sources = _list.sources.values.toList();
+    final present = await Future.wait(sources.map((s) => exists(s.path)));
+    final missing = {
+      for (final (i, source) in sources.indexed)
+        if (!present[i]) source.id,
+    };
+    final current = _ref.read(missingSourcesProvider);
+    if (missing.length != current.length || !missing.containsAll(current)) {
+      _ref.read(missingSourcesProvider.notifier).set(Set.unmodifiable(missing));
+    }
+  }
 
   // Editing ----------------------------------------------------------------
 

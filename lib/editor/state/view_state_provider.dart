@@ -14,6 +14,7 @@ final clipViewsProvider = Provider<List<ClipView>>((ref) {
   final list = ref.watch(sessionProvider.select((s) => s.editList));
   final selected = ref.watch(selectionProvider);
   final edited = ref.watch(justEditedProvider);
+  final missing = ref.watch(missingSourcesProvider);
   ClipView view(Clip clip) {
     final source = list.sourceOf(clip);
     final size = _displaySize(source);
@@ -24,6 +25,7 @@ final clipViewsProvider = Provider<List<ClipView>>((ref) {
       aspectRatio: size.width / size.height,
       isSelected: clip.id == selected,
       isJustEdited: clip.id == edited,
+      isMissing: missing.contains(clip.sourceId),
     );
   }
 
