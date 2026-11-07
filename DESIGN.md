@@ -292,9 +292,9 @@ Under a hairline ink rule, 64 px minimum on desktop. At rest (desktop only) it i
 
 ### States
 - **Empty:** the preview collapses; only the black bar remains. Desktop: a 32 px bold heading, a 16 px ink-secondary explanation (max 560 px), then a 1 px ink-outlined drop target filling the workspace with a filled Add video and the drop hint. Phone: 24 px heading and body at the top, a full-width filled Add video at the bottom within thumb reach. The bar hides its own Add video while the empty state shows one.
-- **Exporting:** status band shows "Export n %" (tabular) and a 2 px square ink progress bar on an ink-muted 35 % track, with an outlined Cancel. Progress is not announced step by step.
+- **Exporting:** status band shows "Export n %" (tabular) and a 2 px square ink progress bar on an ink-muted 35 % track, with an outlined Cancel. Progress is not announced step by step. The track is locked until the export ends: adding, clearing and every edit tool are disabled (so the file matches what is on screen), while scrubbing and playback keep working. Cancel returns the band to rest.
 - **Export done:** ink check icon (20 px), message naming the file, filled Open, outlined Share (when sharing exists), plain close. Announced as a live region.
-- **Export failed:** ink error-outline icon (20 px), the reason in words, a 12 px ink-secondary line saying the edit is intact, filled Retry, plain close. No red.
+- **Export failed:** ink error-outline icon (20 px), the reason in words, then in 12 px ink-secondary a line saying the edit is intact and the exporter's own technical message (ffmpeg's last lines, untranslated), filled Retry, plain close. No red.
 - **File not found clip:** the film area becomes 1 px ink diagonal hatching (45°, 7 px pitch) inside a 1 px ink border, with a centred graphite chip holding a link-off icon (14 px) and "File not found" in 12 px medium; when the clip is too narrow the chip shows the icon alone. The name and length stay above.
 - **Selected:** a 2 px ink frame around the film, fading in at 150 ms.
 - **Just edited:** a 3 px signal-red line along the film's base, fading in at 150 ms; it can coexist with the selected frame.

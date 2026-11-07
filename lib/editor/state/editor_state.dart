@@ -40,6 +40,10 @@ final transportProvider = NotifierProvider<Slot<Transport>, Transport>(
 final importProblemsProvider =
     NotifierProvider<Slot<List<String>>, List<String>>(() => Slot(const []));
 
+/// Sources whose file is gone; their clips are skipped at export.
+final missingSourcesProvider =
+    NotifierProvider<Slot<Set<SourceId>>, Set<SourceId>>(() => Slot(const {}));
+
 /// While a clip edge is dragged, the end of the time span the track keeps
 /// showing, so the scale holds still under the pointer; null otherwise.
 final timelineEndProvider = NotifierProvider<Slot<Duration?>, Duration?>(

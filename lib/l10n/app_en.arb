@@ -136,12 +136,17 @@
   "@dismiss": {
     "description": "Button that hides the export result."
   },
-  "exportFailed": "Export failed: {reason}",
+  "exportFailed": "Export failed",
   "@exportFailed": {
-    "description": "Shown when the export failed; the reason names the problem.",
-    "placeholders": {
-      "reason": {"type": "String"}
-    }
+    "description": "Headline when ffmpeg failed; its own technical message is shown under it."
+  },
+  "exportNoFfmpeg": "Could not find ffmpeg, which cutcap exports with",
+  "@exportNoFfmpeg": {
+    "description": "Headline when the ffmpeg program used for export is neither installed with the app nor on PATH."
+  },
+  "exportTargetIsSource": "Choose another file: this one is a clip in your edit",
+  "@exportTargetIsSource": {
+    "description": "Headline when the user chose to save the export over one of the videos the edit is cut from. Try again asks for another file."
   },
   "editIntact": "Your edit is intact.",
   "@editIntact": {

@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:cutcap/domain/editor_session.dart';
 import 'package:cutcap/editor/state/editor_controller.dart';
 import 'package:cutcap/editor/state/editor_state.dart';
+import 'package:cutcap/editor/state/export_notifier.dart';
+import 'package:cutcap/export/export_engine.dart';
 import 'package:cutcap/media/media_probe.dart';
 import 'package:cutcap/player/preview_player.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +37,16 @@ final class _FakeProbe implements MediaProbe {
   }
 }
 
+/// An export that runs until the test ends.
+final class _EndlessEngine implements ExportEngine {
+  @override
+  Stream<ExportEvent> export(ExportJob job) =>
+      StreamController<ExportEvent>().stream;
+
+  @override
+  void cancel() {}
+}
+
 Duration _ms(int milliseconds) => Duration(milliseconds: milliseconds);
 
 void main() {
@@ -56,6 +70,8 @@ void main() {
       overrides: [
         previewPlayerProvider.overrideWithValue(player as PreviewPlayer),
         mediaProbeProvider.overrideWithValue(_FakeProbe()),
+        exportEngineProvider.overrideWithValue(_EndlessEngine()),
+        saveLocationProvider.overrideWithValue((_) async => 'D:/out/x.mp4'),
       ],
     );
     editor = container.read(editorControllerProvider);
@@ -318,6 +334,40 @@ void main() {
 
       expect(container.read(transportProvider), Transport.paused);
       expect(playhead(), _a.duration);
+    });
+  });
+
+  group('while an export runs', () {
+    test('ignores edits so the export matches the track', () async {
+      await add([_a, _b]);
+      await container.read(exportProvider.notifier).start();
+      final before = session();
+
+      editor.seek(const Duration(seconds: 1));
+      editor.split();
+      editor.select(clips().first.id);
+      editor.deleteSelected();
+      editor.clear();
+      editor.undo();
+      editor.beginTrim(clips().first.id, ClipEdge.outPoint);
+      editor.updateTrim(_ms(-500));
+      editor.endTrim();
+      editor.beginReorder(clips().first.id);
+      editor.updateReorder(const Duration(seconds: 6));
+      editor.endReorder();
+      await add([_c]);
+
+      expect(session(), same(before));
+    });
+
+    test('still scrubs and plays', () async {
+      await add([_a]);
+      await container.read(exportProvider.notifier).start();
+
+      editor.seek(const Duration(seconds: 2));
+      expect(playhead(), const Duration(seconds: 2));
+      editor.playForward();
+      expect(container.read(transportProvider), Transport.forward);
     });
   });
 }

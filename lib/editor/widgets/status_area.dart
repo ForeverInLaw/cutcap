@@ -94,12 +94,16 @@ class StatusArea extends StatelessWidget {
           close,
         ],
       ),
-      ExportFailed(:final reason) => _StatusPanel(
+      ExportFailed(:final problem, :final detail) => _StatusPanel(
         key: const ValueKey(ExportFailed),
         compact: compact,
         icon: Icons.error_outline_sharp,
-        message: l10n.exportFailed(reason),
-        detail: l10n.editIntact,
+        message: switch (problem) {
+          ExportProblem.exporterMissing => l10n.exportNoFfmpeg,
+          ExportProblem.targetIsSource => l10n.exportTargetIsSource,
+          ExportProblem.failed => l10n.exportFailed,
+        },
+        detail: [l10n.editIntact, ?detail].join('\n'),
         buttons: [
           ControlButton(
             icon: Icons.refresh_sharp,
