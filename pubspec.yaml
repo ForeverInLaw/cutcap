@@ -1,0 +1,25 @@
+name: cutcap
+description: "Minimal frame-accurate video cutter for Android and Windows."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.12.2
+  # Exact pin; CI reads this value via subosito/flutter-action's flutter-version-file.
+  flutter: 3.44.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true
