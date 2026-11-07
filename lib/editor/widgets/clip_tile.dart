@@ -8,17 +8,27 @@ import 'focus_ring.dart';
 import 'timecode_text.dart';
 
 /// Track metrics shared by the clip tiles, the add tile and the playhead.
-/// The label row grows with the system text size.
+/// The label rows grow with the system text size. [twoLineLabels] puts the
+/// length under the name (phone), where tiles are too narrow for both.
 @immutable
 final class TrackMetrics {
-  TrackMetrics(TextScaler scaler, {required this.filmHeight})
-    : labelHeight = (scaler.scale(_labelSize) * 1.3).ceilToDouble();
+  TrackMetrics(
+    TextScaler scaler, {
+    required this.filmHeight,
+    this.twoLineLabels = false,
+  }) : _line = (scaler.scale(_labelSize) * 1.3).ceilToDouble();
 
   static const _labelSize = 11.0;
   static const labelGap = 6.0;
 
-  final double labelHeight;
+  /// Narrower tiles drop the name and show the length alone.
+  static const minNamedWidth = 70.0;
+
+  final double _line;
   final double filmHeight;
+  final bool twoLineLabels;
+
+  double get labelHeight => twoLineLabels ? 2 * _line : _line;
 
   double get height => labelHeight + labelGap + filmHeight;
 }
@@ -76,24 +86,26 @@ class ClipTile extends StatelessWidget {
             children: [
               SizedBox(
                 height: metrics.labelHeight,
-                child: Text.rich(
-                  TextSpan(
-                    text: clip.name,
-                    children: [
-                      TextSpan(
-                        text: ' · $length',
-                        style: TextStyle(
-                          color: tokens.inkSecondary,
-                          fontWeight: FontWeight.w400,
-                          fontFeatures: TimecodeText.tabular,
+                child: metrics.twoLineLabels
+                    ? _StackedLabel(clip.name, length)
+                    : Text.rich(
+                        TextSpan(
+                          text: clip.name,
+                          children: [
+                            TextSpan(
+                              text: ' · $length',
+                              style: TextStyle(
+                                color: tokens.inkSecondary,
+                                fontWeight: FontWeight.w400,
+                                fontFeatures: TimecodeText.tabular,
+                              ),
+                            ),
+                          ],
                         ),
+                        style: text.labelSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
-                  style: text.labelSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
               ),
               const SizedBox(height: TrackMetrics.labelGap),
               SizedBox(
@@ -137,6 +149,46 @@ class ClipTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Name over length, each on its own line; tiles narrower than
+/// [TrackMetrics.minNamedWidth] keep the length line only.
+class _StackedLabel extends StatelessWidget {
+  const _StackedLabel(this.name, this.length);
+
+  final String name;
+  final String length;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelSmall;
+    final tokens = CutcapTokens.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (constraints.maxWidth >= TrackMetrics.minNamedWidth)
+            Text(
+              name,
+              style: style,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          Text(
+            length,
+            style: style?.copyWith(
+              color: tokens.inkSecondary,
+              fontWeight: FontWeight.w400,
+              fontFeatures: TimecodeText.tabular,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }

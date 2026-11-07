@@ -10,39 +10,64 @@ import 'clip_tile.dart';
 import 'control_button.dart';
 import 'ruler_view.dart';
 
+/// How the playhead rule meets the headline timecode: the rule rises
+/// [rise] px above the ruler, to a red underline just under the time
+/// ([timeWidth] from the left edge); when the playhead stands past the time
+/// a hairline carries the underline on to it. Time and rule read as one
+/// stroke wherever the playhead is.
+@immutable
+final class PlayheadTie {
+  const PlayheadTie({required this.rise, required this.timeWidth});
+
+  final double rise;
+  final double timeWidth;
+}
+
 /// Ruler, the single track and the red playhead rule through both, with an
 /// add tile fixed at the end of the track.
 ///
 /// Clips are laid out by time across the visible window, back to back with
 /// 4 px gutters. Pressing or dragging on the ruler seeks; every update is
-/// reported at once and nothing waits for the frame.
-///
-/// The playhead rule starts [playheadLead] px above the ruler so it reaches
-/// the headline timecode's baseline: the time and the rule read as one.
+/// reported at once and nothing waits for the frame. [compact] (phone)
+/// stacks clip names over lengths and stretches the ruler to a touch target.
 class TimelineView extends StatelessWidget {
   const TimelineView({
     required this.state,
     required this.actions,
     required this.compact,
-    required this.playheadLead,
+    required this.tie,
+    this.filmHeight = defaultFilmHeight,
     super.key,
   });
 
   final EditorViewState state;
   final EditorActions actions;
   final bool compact;
-  final double playheadLead;
+  final PlayheadTie tie;
+  final double filmHeight;
 
-  static const filmHeight = 110.0;
+  static const defaultFilmHeight = 110.0;
   static const _rulerGap = 8.0;
+  static const _touchRuler = 56.0;
+  static const _rule = 2.0;
+
+  static RulerMetrics _ruler(TextScaler scaler, bool compact) =>
+      RulerMetrics(scaler, minHeight: compact ? _touchRuler : 0);
+
+  static TrackMetrics _track(TextScaler scaler, bool compact, double film) =>
+      TrackMetrics(scaler, filmHeight: film, twoLineLabels: compact);
 
   /// The view's height at the current text size: top rule, ruler, track.
-  static double heightOf(BuildContext context) {
+  static double heightOf(
+    BuildContext context, {
+    required bool compact,
+    double filmHeight = defaultFilmHeight,
+  }) {
     final scaler = MediaQuery.textScalerOf(context);
     return 1 +
-        RulerMetrics(scaler).height +
+        _ruler(scaler, compact).height +
         _rulerGap +
-        TrackMetrics(scaler, filmHeight: filmHeight).height;
+        _track(scaler, compact, filmHeight).height;
   }
 
   @override
@@ -50,8 +75,9 @@ class TimelineView extends StatelessWidget {
     final tokens = CutcapTokens.of(context);
     final space = CutcapTokens.space;
     final scaler = MediaQuery.textScalerOf(context);
-    final metrics = TrackMetrics(scaler, filmHeight: filmHeight);
-    final rulerHeight = RulerMetrics(scaler).height;
+    final metrics = _track(scaler, compact, filmHeight);
+    final rulerMetrics = _ruler(scaler, compact);
+    final rulerHeight = rulerMetrics.height;
     const rulerGap = _rulerGap;
     final addWidth = compact ? 48.0 : 56.0;
     final trackTop = rulerHeight + rulerGap;
@@ -63,8 +89,14 @@ class TimelineView extends StatelessWidget {
         final timeWidth = constraints.maxWidth - addWidth - space.xs;
         double xOf(Duration time) => window.fractionOf(time) * timeWidth;
         final playheadX = xOf(state.position);
-        Widget ruler(RulerLayer layer) =>
-            RulerView(window: window, rate: state.frameRate, layer: layer);
+        final showPlayhead = playheadX >= 0 && playheadX <= timeWidth;
+        Widget ruler(RulerLayer layer) => RulerView(
+          window: window,
+          rate: state.frameRate,
+          layer: layer,
+          metrics: rulerMetrics,
+        );
+        Widget red() => const ColoredBox(color: CutcapTokens.signal);
 
         return DecoratedBox(
           decoration: BoxDecoration(
@@ -109,13 +141,39 @@ class TimelineView extends StatelessWidget {
                     width: addWidth,
                   ),
                 ),
-                if (playheadX >= 0 && playheadX <= timeWidth)
+                if (showPlayhead) ...[
+                  // The time is underlined; a hairline carries the underline
+                  // on to the rule when the playhead stands past the time.
                   Positioned(
-                    left: playheadX - _Playhead.headSize / 2,
-                    top: -playheadLead,
-                    height: playheadLead + trackTop + metrics.height,
-                    child: IgnorePointer(child: _Playhead(lead: playheadLead)),
+                    left: 0,
+                    width: tie.timeWidth,
+                    top: -tie.rise,
+                    height: _rule,
+                    child: IgnorePointer(child: red()),
                   ),
+                  if (playheadX > tie.timeWidth)
+                    Positioned(
+                      left: tie.timeWidth,
+                      width: playheadX - tie.timeWidth,
+                      top: -tie.rise,
+                      height: 1,
+                      child: IgnorePointer(child: red()),
+                    ),
+                  Positioned(
+                    left: playheadX - _rule / 2,
+                    width: _rule,
+                    top: -tie.rise,
+                    height: tie.rise + trackTop + metrics.height,
+                    child: IgnorePointer(child: red()),
+                  ),
+                  Positioned(
+                    left: playheadX - _headSize / 2,
+                    width: _headSize,
+                    top: 0,
+                    height: _headSize,
+                    child: IgnorePointer(child: red()),
+                  ),
+                ],
                 Positioned(
                   left: 0,
                   top: 0,
@@ -130,6 +188,8 @@ class TimelineView extends StatelessWidget {
       },
     );
   }
+
+  static const _headSize = 10.0;
 
   /// A clip tile cut to the visible window; the parts outside stay hidden
   /// without clipping, so the tile's focus ring is never cut.
@@ -216,38 +276,4 @@ class _Scrubber extends StatelessWidget {
       ),
     );
   }
-}
-
-/// The red rule, rising [lead] px above the ruler, with a square head on
-/// the ruler's top edge.
-class _Playhead extends StatelessWidget {
-  const _Playhead({required this.lead});
-
-  final double lead;
-
-  static const headSize = 10.0;
-  static const _rule = 2.0;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: headSize,
-    child: Stack(
-      children: [
-        Positioned(
-          top: lead,
-          left: 0,
-          width: headSize,
-          height: headSize,
-          child: const ColoredBox(color: CutcapTokens.signal),
-        ),
-        const Positioned(
-          top: 0,
-          bottom: 0,
-          left: (headSize - _rule) / 2,
-          width: _rule,
-          child: ColoredBox(color: CutcapTokens.signal),
-        ),
-      ],
-    ),
-  );
 }

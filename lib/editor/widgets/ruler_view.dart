@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../theme/cutcap_tokens.dart';
@@ -8,10 +10,15 @@ import 'timecode_text.dart';
 /// Vertical layout of the ruler, scaled with the system text size: the
 /// playhead head on top, the row of guide words and labels under it, ticks
 /// along the bottom.
+///
+/// [minHeight] stretches the ruler (the space goes between labels and
+/// ticks) so it stays a comfortable touch target for scrubbing.
 @immutable
 final class RulerMetrics {
-  RulerMetrics(TextScaler scaler)
+  RulerMetrics(TextScaler scaler, {this.minHeight = 0})
     : labelLine = (scaler.scale(_labelSize) * 1.25).ceilToDouble();
+
+  final double minHeight;
 
   static const _labelSize = 12.0;
 
@@ -23,7 +30,13 @@ final class RulerMetrics {
 
   final double labelLine;
 
-  double get height => labelTop + labelLine + _labelGap + majorTick;
+  double get height =>
+      math.max(minHeight, labelTop + labelLine + _labelGap + majorTick);
+
+  /// The band labels occupy, cleared to the workspace behind each label so
+  /// the playhead rule visibly stops above a time and resumes below it.
+  double get knockoutTop => labelTop - 2;
+  double get knockoutBottom => labelTop + labelLine + _labelGap;
 }
 
 enum RulerLayer {
@@ -42,12 +55,14 @@ class RulerView extends StatelessWidget {
     required this.window,
     required this.rate,
     required this.layer,
+    required this.metrics,
     super.key,
   });
 
   final TimelineWindow window;
   final FrameRate rate;
   final RulerLayer layer;
+  final RulerMetrics metrics;
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +77,7 @@ class RulerView extends StatelessWidget {
           window: window,
           rate: rate,
           paper: tokens.workspace,
-          metrics: RulerMetrics(scaler),
+          metrics: metrics,
           guideStyle: text.labelMedium!.copyWith(
             color: tokens.ink,
             fontFeatures: TimecodeText.tabular,
@@ -163,10 +178,16 @@ class _LabelPainter extends CustomPainter {
     double y,
   ) => _paintOnPaper(canvas, _layout(value, style), Offset(x, y));
 
-  /// Paints [text] on a paper knockout that clears whatever runs beneath.
+  /// Paints [text] on a knockout that clears whatever runs beneath, from
+  /// just under the playhead head down to the ticks.
   void _paintOnPaper(Canvas canvas, TextPainter text, Offset at) {
     canvas.drawRect(
-      Rect.fromLTWH(at.dx - 2, at.dy, text.width + 4, metrics.labelLine),
+      Rect.fromLTRB(
+        at.dx - 4,
+        metrics.knockoutTop,
+        at.dx + text.width + 4,
+        metrics.knockoutBottom,
+      ),
       Paint()..color = paper,
     );
     text

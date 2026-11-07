@@ -6,77 +6,128 @@ import '../editor_view_state.dart';
 import '../timecode.dart';
 import 'timecode_text.dart';
 
+/// Where the headline timecode sits inside a [PositionReadout], so other
+/// parts of the screen can line up with it: controls stand on its baseline
+/// and the playhead rule is tied to it.
+@immutable
+final class ReadoutGeometry {
+  const ReadoutGeometry({
+    required this.scale,
+    required this.timeWidth,
+    required this.baselineDrop,
+    required this.height,
+  });
+
+  /// Shrink applied when the readout does not fit its width (narrow windows,
+  /// large system font sizes); 1 otherwise.
+  final double scale;
+
+  /// Width of the playhead time, from the readout's left edge.
+  final double timeWidth;
+
+  /// Distance from the readout's bottom edge up to the time's baseline.
+  final double baselineDrop;
+
+  /// Height of the readout.
+  final double height;
+}
+
 /// The playhead time set as the screen's headline, followed by the grey
 /// sequence total on the same baseline: 80 px on desktop, 44 px when
-/// [compact] (phone).
+/// [compact] (phone). Shrinks as a whole to fit its width.
 class PositionReadout extends StatelessWidget {
   const PositionReadout({
     required this.state,
     required this.compact,
+    required this.geometry,
     super.key,
   });
 
   final EditorViewState state;
   final bool compact;
+  final ReadoutGeometry geometry;
 
-  static TextStyle? _timeStyle(BuildContext context, bool compact) {
+  static const _desktopGap = 12.0;
+  static const _phoneGap = 8.0;
+
+  static (TextStyle, TextStyle) _styles(BuildContext context, bool compact) {
     final text = Theme.of(context).textTheme;
-    return (compact ? text.displaySmall : text.displayLarge)?.copyWith(
-      fontFeatures: TimecodeText.tabular,
+    final tokens = CutcapTokens.of(context);
+    final time = (compact ? text.displaySmall : text.displayLarge)!;
+    // Line height 1 so the headline alone sets the baseline drop.
+    final total = compact
+        ? text.bodyLarge!.copyWith(color: tokens.inkSecondary, height: 1)
+        : text.headlineMedium!.copyWith(color: tokens.inkMuted);
+    return (
+      time.copyWith(fontFeatures: TimecodeText.tabular),
+      total.copyWith(fontFeatures: TimecodeText.tabular),
     );
   }
 
-  /// Distance from the readout's bottom edge up to the timecode's baseline,
-  /// at the current text size. Controls beside the readout stand on the
-  /// baseline, and the playhead rule rises to it.
-  static double baselineDrop(BuildContext context, {required bool compact}) {
-    final painter = TextPainter(
-      text: TextSpan(text: '0', style: _timeStyle(context, compact)),
-      textDirection: TextDirection.ltr,
+  static (String, String) _texts(EditorViewState state) => (
+    Timecode.full(state.position, state.frameRate),
+    '/ ${Timecode.full(state.duration, state.frameRate)}',
+  );
+
+  /// Lays the readout out for [maxWidth] without building it.
+  static ReadoutGeometry measure(
+    BuildContext context, {
+    required EditorViewState state,
+    required bool compact,
+    required double maxWidth,
+  }) {
+    final (timeStyle, totalStyle) = _styles(context, compact);
+    final (time, total) = _texts(state);
+    TextPainter layout(String value, TextStyle style) => TextPainter(
+      text: TextSpan(text: value, style: style),
+      textDirection: Directionality.of(context),
       textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
     )..layout();
-    final drop =
-        painter.height -
-        painter.computeDistanceToActualBaseline(TextBaseline.alphabetic);
-    painter.dispose();
-    return drop;
+    final timePainter = layout(time, timeStyle);
+    final totalPainter = layout(total, totalStyle);
+    final width =
+        timePainter.width +
+        (compact ? _phoneGap : _desktopGap) +
+        totalPainter.width;
+    final scale = width > maxWidth ? maxWidth / width : 1.0;
+    final geometry = ReadoutGeometry(
+      scale: scale,
+      timeWidth: timePainter.width * scale,
+      baselineDrop:
+          (timePainter.height -
+              timePainter.computeDistanceToActualBaseline(
+                TextBaseline.alphabetic,
+              )) *
+          scale,
+      height: timePainter.height * scale,
+    );
+    timePainter.dispose();
+    totalPainter.dispose();
+    return geometry;
   }
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final tokens = CutcapTokens.of(context);
-    final position = Timecode.full(state.position, state.frameRate);
-    final total = '/ ${Timecode.full(state.duration, state.frameRate)}';
+    final (timeStyle, totalStyle) = _styles(context, compact);
+    final (time, total) = _texts(state);
+    TextStyle scaled(TextStyle style) => geometry.scale == 1
+        ? style
+        : style.copyWith(
+            fontSize: style.fontSize! * geometry.scale,
+            letterSpacing: (style.letterSpacing ?? 0) * geometry.scale,
+          );
 
     return Semantics(
       label: AppLocalizations.of(context).position,
-      child: FittedBox(
-        // Narrow windows and large system font sizes shrink the time
-        // instead of clipping it.
-        fit: BoxFit.scaleDown,
-        alignment: AlignmentDirectional.bottomStart,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            TimecodeText(position, style: _timeStyle(context, compact)),
-            SizedBox(
-              width: compact ? CutcapTokens.space.s : CutcapTokens.space.m,
-            ),
-            TimecodeText(
-              total,
-              // Line height 1 so the headline alone sets the baseline drop.
-              style: compact
-                  ? text.bodyLarge?.copyWith(
-                      color: tokens.inkSecondary,
-                      height: 1,
-                    )
-                  : text.headlineMedium?.copyWith(color: tokens.inkMuted),
-            ),
-          ],
-        ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          TimecodeText(time, style: scaled(timeStyle)),
+          SizedBox(width: (compact ? _phoneGap : _desktopGap) * geometry.scale),
+          Flexible(child: TimecodeText(total, style: scaled(totalStyle))),
+        ],
       ),
     );
   }
