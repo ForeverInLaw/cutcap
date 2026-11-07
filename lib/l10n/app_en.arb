@@ -1,0 +1,11 @@
+{
+  "@@locale": "en",
+  "appTitle": "cutcap",
+  "@appTitle": {
+    "description": "Application title shown in the window title bar and the task switcher."
+  },
+  "homePlaceholder": "Add videos to start cutting",
+  "@homePlaceholder": {
+    "description": "Placeholder text on the empty home screen."
+  }
+}
