@@ -121,7 +121,7 @@ ffmpeg -hide_banner -nostdin -y -loglevel error -nostats -progress pipe:1 \
 | `media_kit_libs_video` | 1.0.7 (resolves `media_kit_libs_windows_video` 1.0.11, which bundles libmpv `mpv-dev-x86_64-20230924-git-652a1dd`, and `media_kit_libs_android_video` 1.3.8) |
 | FFmpeg (Windows bundle and CI) | gyan.dev 9.0.2 essentials, GPLv3, static: `https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.7z`, 35 430 500 bytes, sha256 `4705843ccaaf54257c16ad90f3e952ece33c17df964ecf7bfdbb0f49c7171077`. Ship `bin/ffmpeg.exe` and `bin/ffprobe.exe`. |
 
-Pub versions are pinned exactly (no caret). The FFmpeg sha256 is GitHub's published asset digest; CI verifies it on download and keys the cache on version + sha256. Essentials includes libx264, nvenc, amf, libvpl (QSV) and mediafoundation per gyan.dev's component list. The spike ran the 9.0.2 full build, which has the same encoders and filters.
+Pub versions are pinned exactly (no caret). The FFmpeg sha256 is GitHub's published asset digest, and a real download matched it (CUTCAP-6); `tool/fetch_ffmpeg.ps1` verifies it on every download, and CI keys the cache on version + sha256. Essentials includes libx264, nvenc, amf, libvpl (QSV) and mediafoundation per gyan.dev's component list. The spike ran the 9.0.2 full build, which has the same encoders and filters; the CUTCAP-6 export tests pass on the essentials build with each of nvenc, amf, mf and libx264.
 
 ## Android verification (deferred to CUTCAP-9, manual)
 
