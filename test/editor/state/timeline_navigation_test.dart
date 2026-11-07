@@ -2,6 +2,7 @@ import 'package:cutcap/domain/editor_session.dart';
 import 'package:cutcap/editor/ruler.dart';
 import 'package:cutcap/editor/state/editor_controller.dart';
 import 'package:cutcap/editor/state/editor_state.dart';
+import 'package:cutcap/editor/state/timeline_gestures.dart';
 import 'package:cutcap/editor/state/view_state_provider.dart';
 import 'package:cutcap/media/media_probe.dart';
 import 'package:cutcap/player/preview_player.dart';
@@ -133,6 +134,52 @@ void main() {
       editor.select(container.read(sessionProvider).editList.clips.last.id);
       editor.deleteSelected();
       expect(window(), TimelineWindow(_ms(500), _ms(4000)));
+    });
+  });
+  group('touch', () {
+    /// One update of a touch pan or pinch on the track, sent the way the
+    /// track sends it.
+    void pinch({
+      required double fromX,
+      required double toX,
+      double fromScale = 1,
+      double toScale = 1,
+    }) {
+      final step = TrackPinch.between(
+        window: window(),
+        trackWidth: _trackWidth,
+        fromX: fromX,
+        toX: toX,
+        fromScale: fromScale,
+        toScale: toScale,
+      );
+      editor.scrollTimeline(step.scroll);
+      editor.zoomTimeline(step.factor, step.anchor, _trackWidth);
+    }
+
+    test('spreading two fingers zooms in around them', () {
+      pinch(fromX: 600, toX: 600, toScale: 2);
+      expect(window(), TimelineWindow(_ms(1750), _ms(5250)));
+    });
+
+    test('one finger drags the zoomed track along with it', () {
+      zoom(0.25);
+      pinch(fromX: 600, toX: 400);
+      expect(
+        window(),
+        const TimelineWindow(
+          Duration(microseconds: 291667),
+          Duration(microseconds: 2041667),
+        ),
+      );
+    });
+
+    test('the time between the fingers stays under them as they move', () {
+      zoom(0.5);
+      editor.scrollTimeline(const Duration(seconds: 2));
+      pinch(fromX: 300, toX: 600, toScale: 1.25);
+      expect(window(), TimelineWindow(_ms(1475), _ms(4275)));
+      expect(window().timeAt(600 / _trackWidth), _ms(2875));
     });
   });
 }
