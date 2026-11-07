@@ -92,7 +92,12 @@ class VideoDocuments(
 
     /** Takes the videos of an `ACTION_SEND`/`ACTION_SEND_MULTIPLE` intent. */
     fun onIntent(intent: Intent) {
-        val uris = shared(intent)
+        val readGranted = (intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0
+        val uris = shared(intent).filter { uri ->
+            ShareFilter.accepts(uri.scheme, uri.authority, readGranted, ::isOwnAuthority).also {
+                if (!it) Log.w(TAG, "Ignoring a shared ${uri.scheme}://${uri.authority} URI")
+            }
+        }
         if (uris.isEmpty()) return
         val temporary = uris.filterNot(::persist)
         if (temporary.isEmpty() || hasVideoPermission()) return keep(uris)
@@ -190,6 +195,16 @@ class VideoDocuments(
             arrayOf(name, size.toString()),
             null,
         )?.use { if (it.moveToFirst()) ContentUris.withAppendedId(collection, it.getLong(0)) else null }
+    }
+
+    private fun isOwnAuthority(authority: String): Boolean {
+        val provider = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            activity.packageManager.resolveContentProvider(authority, PackageManager.ComponentInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            activity.packageManager.resolveContentProvider(authority, 0)
+        }
+        return provider?.packageName == activity.packageName
     }
 
     private fun hasVideoPermission() =
