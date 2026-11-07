@@ -9,6 +9,8 @@ import '../editor_view_state.dart';
 import '../ruler.dart';
 import 'editor_state.dart';
 import 'export_notifier.dart';
+import 'thumbnails.dart';
+import 'timeline_zoom.dart';
 
 /// The track as the screen draws it. Rebuilt only when the edit, the
 /// selection or the marked clip change, not as the playhead moves.
@@ -16,9 +18,12 @@ final clipViewsProvider = Provider<List<ClipView>>((ref) {
   final list = ref.watch(sessionProvider.select((s) => s.editList));
   final selected = ref.watch(selectionProvider);
   final edited = ref.watch(justEditedProvider);
+  final missing = ref.watch(missingSourcesProvider);
+  final thumbnails = ref.watch(thumbnailCacheProvider);
   ClipView view(Clip clip) {
     final source = list.sourceOf(clip);
     final size = _displaySize(source);
+    final isMissing = missing.contains(clip.sourceId);
     return ClipView(
       id: clip.id,
       name: p.basename(source.path),
@@ -26,6 +31,10 @@ final clipViewsProvider = Provider<List<ClipView>>((ref) {
       aspectRatio: size.width / size.height,
       isSelected: clip.id == selected,
       isJustEdited: clip.id == edited,
+      isMissing: isMissing,
+      filmstrip: thumbnails == null || isMissing
+          ? null
+          : filmstripOf(thumbnails, clip, source),
     );
   }
 
@@ -50,12 +59,11 @@ final editorViewStateProvider = Provider<EditorViewState>((ref) {
   return EditorViewState(
     clips: ref.watch(clipViewsProvider),
     position: position,
-    window: timelineEnd == null
-        ? null
-        : TimelineWindow(
-            Duration.zero,
-            timelineEnd > list.duration ? timelineEnd : list.duration,
-          ),
+    window: _window(
+      zoom: ref.watch(timelineZoomProvider),
+      total: list.duration,
+      timelineEnd: timelineEnd,
+    ),
     frameRate: first?.frameRate ?? const FrameRate(30, 1),
     outputSize: first == null ? null : _displaySize(first),
     isPlaying: ref.watch(
@@ -76,6 +84,19 @@ final editorViewStateProvider = Provider<EditorViewState>((ref) {
     isTrimming: timelineEnd != null,
   );
 });
+
+/// What the track shows: the zoomed window kept inside the sequence, or the
+/// whole sequence (null). While an edge is dragged the sequence counts as
+/// reaching at least [timelineEnd], so the scale holds still.
+TimelineWindow? _window({
+  required TimelineWindow? zoom,
+  required Duration total,
+  required Duration? timelineEnd,
+}) {
+  final end = timelineEnd != null && timelineEnd > total ? timelineEnd : total;
+  if (zoom != null) return zoom.within(end);
+  return timelineEnd == null ? null : TimelineWindow(Duration.zero, end);
+}
 
 /// Frame size of [source] as shown upright.
 Size _displaySize(Source source) {
