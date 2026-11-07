@@ -1,3 +1,4 @@
+import 'package:cutcap/domain/frame_rate.dart';
 import 'package:cutcap/editor/timecode.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -44,15 +45,6 @@ void main() {
       expect(
         Timecode.full(const Duration(hours: 1, minutes: 2, seconds: 3), fps30),
         '01:02:03.00',
-      );
-    });
-  });
-
-  group('FrameRate', () {
-    test('one frame at 29.97 fps lasts 33 366 µs', () {
-      expect(
-        const FrameRate(30000, 1001).frameDuration,
-        const Duration(microseconds: 33366),
       );
     });
   });

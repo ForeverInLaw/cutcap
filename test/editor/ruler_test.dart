@@ -1,5 +1,5 @@
 import 'package:cutcap/editor/ruler.dart';
-import 'package:cutcap/editor/timecode.dart';
+import 'package:cutcap/domain/frame_rate.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -1,4 +1,4 @@
-import 'timecode.dart';
+import '../domain/frame_rate.dart';
 
 /// The span of sequence time the track currently shows.
 final class TimelineWindow {

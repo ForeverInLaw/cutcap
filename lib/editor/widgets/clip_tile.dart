@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/cutcap_tokens.dart';
 import '../editor_view_state.dart';
 import '../clip_label.dart';
+import '../../domain/frame_rate.dart';
 import '../timecode.dart';
 import 'focus_ring.dart';
 import 'timecode_text.dart';
