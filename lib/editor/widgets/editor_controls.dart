@@ -100,6 +100,28 @@ final class EditorControls {
     size: inBar ? _barSize : _size,
   );
 
+  /// The phone bar's overflow: a plain icon button opening a menu with the
+  /// actions too rare for a place of their own (Clear track). Off while
+  /// none of them is.
+  Widget more() => MenuAnchor(
+    menuChildren: [
+      MenuItemButton(
+        onPressed: _when(state.canClear, actions.onClear),
+        child: Text(_l10n.clearTrack),
+      ),
+    ],
+    builder: (context, menu, _) => ControlButton(
+      icon: Icons.more_vert_sharp,
+      label: _l10n.moreActions,
+      onPressed: _when(
+        state.canClear,
+        () => menu.isOpen ? menu.close() : menu.open(),
+      ),
+      kind: ControlKind.plain,
+      size: _size,
+    ),
+  );
+
   /// In the desktop top bar: words only, beside Add video.
   Widget clear() => ControlButton(
     label: _l10n.clearTrack,
