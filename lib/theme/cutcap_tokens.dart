@@ -13,26 +13,17 @@ final class CutcapTokens extends ThemeExtension<CutcapTokens> {
     required this.frame,
   });
 
-  /// Paper workspace with black ink.
-  static const light = CutcapTokens(
-    workspace: Color(0xFFF4F4F1),
-    ink: Color(0xFF111111),
-    inkSecondary: Color(0xFF6B6B66),
-    inkMuted: Color(0xFF8C8C88),
-    frame: Color(0xFFDCDCD7),
-  );
-
-  /// The workspace inverted to near-black with paper ink. It sits one step
-  /// above the preview black so the two fields stay distinct.
-  static const dark = CutcapTokens(
-    workspace: Color(0xFF1F1F1D),
+  /// The one scheme: a graphite workspace with paper ink, a step above the
+  /// preview black so the two fields stay distinct.
+  static const graphite = CutcapTokens(
+    workspace: Color(0xFF262624),
     ink: Color(0xFFF4F4F1),
     inkSecondary: Color(0xFFA3A39E),
     inkMuted: Color(0xFF8C8C88),
-    frame: Color(0xFF363633),
+    frame: Color(0xFF41413E),
   );
 
-  /// The preview field and top bar, black in both schemes.
+  /// The preview field and top bar.
   static const preview = Color(0xFF111111);
   static const onPreview = Color(0xFFFFFFFF);
 
@@ -41,12 +32,14 @@ final class CutcapTokens extends ThemeExtension<CutcapTokens> {
   static const signal = Color(0xFFE2001A);
 
   final Color workspace;
+
+  /// Paper ink: text, hairline rules, outlines, focus rings.
   final Color ink;
 
-  /// Small secondary text (AA on the workspace).
+  /// Small secondary text (6:1 on graphite).
   final Color inkSecondary;
 
-  /// Large secondary text and inactive marks only: below 4.5:1 on paper.
+  /// Large secondary text and inactive marks only (4.5:1 on graphite).
   final Color inkMuted;
 
   /// Filmstrip frames while thumbnails are not available.

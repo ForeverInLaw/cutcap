@@ -6,7 +6,8 @@ import 'l10n/app_localizations.dart';
 import 'theme/cutcap_theme.dart';
 
 /// Root widget. Strings come from gen-l10n and follow the system locale,
-/// falling back to English; light and dark follow the system scheme.
+/// falling back to English. The editor has one dark scheme and ignores the
+/// system light/dark setting.
 class CutcapApp extends StatelessWidget {
   const CutcapApp({super.key});
 
@@ -16,8 +17,7 @@ class CutcapApp extends StatelessWidget {
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      theme: CutcapTheme.light,
-      darkTheme: CutcapTheme.dark,
+      theme: CutcapTheme.data,
       home: const EditorScreen(state: EditorViewState(), actions: _unwired),
     );
   }

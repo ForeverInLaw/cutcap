@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'cutcap_tokens.dart';
 
-/// Material 3 themes built from [CutcapTokens]: one grotesk, flat fields,
-/// hairline ink rules, 2 px corners, no shadows or tints.
+/// The Material 3 theme built from [CutcapTokens]: one grotesk, flat
+/// fields, hairline paper rules, 2 px corners, no shadows, tints or glow.
+/// There is one dark scheme, whatever the system theme.
 abstract final class CutcapTheme {
   static const fontFamily = 'GolosText';
 
-  static final ThemeData light = _build(Brightness.light, CutcapTokens.light);
-  static final ThemeData dark = _build(Brightness.dark, CutcapTokens.dark);
+  static final ThemeData data = _build(CutcapTokens.graphite);
 
   /// Material type roles mapped to the editor's type scale.
   static const TextTheme _type = TextTheme(
@@ -94,7 +94,8 @@ abstract final class CutcapTheme {
     ),
   );
 
-  static ThemeData _build(Brightness brightness, CutcapTokens t) {
+  static ThemeData _build(CutcapTokens t) {
+    const brightness = Brightness.dark;
     final scheme = ColorScheme(
       brightness: brightness,
       primary: t.ink,
