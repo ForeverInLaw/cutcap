@@ -25,6 +25,14 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // CI signs every debug APK with one cached key so each installs
+            // over the last; locally the SDK's own debug key is used.
+            System.getenv("CUTCAP_DEBUG_KEYSTORE")?.let { storeFile = file(it) }
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
@@ -42,4 +50,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Kotlin unit tests (`./gradlew :app:testDebugUnitTest`), run in CI.
+    testImplementation("junit:junit:4.13.2")
 }

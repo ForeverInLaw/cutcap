@@ -12,16 +12,23 @@ abstract interface class MediaProbe {
 
 /// Why a file could not be probed.
 sealed class MediaProbeException implements Exception {
-  const MediaProbeException(this.path);
+  const MediaProbeException(this.path, {this.displayName});
 
   /// The file that was probed.
   final String path;
+
+  /// The file's name as the system shows it, when [path] does not end in it
+  /// (see [Source.displayName]).
+  final String? displayName;
+
+  /// What the user knows the file by.
+  String get name => displayName ?? fileNameOf(path);
 }
 
 /// The file is not a video this device can decode (missing, not a media
 /// file, no video stream, or no usable length).
 final class UndecodableMedia extends MediaProbeException {
-  const UndecodableMedia(super.path, this.reason);
+  const UndecodableMedia(super.path, this.reason, {super.displayName});
 
   /// Diagnostic detail, not for display.
   final String reason;

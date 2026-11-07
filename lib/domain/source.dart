@@ -18,12 +18,16 @@ final class Source {
     required this.hasAudio,
     this.averageFrameRate,
     this.videoBitRate,
+    this.displayName,
   }) : assert(duration > Duration.zero),
        assert(
          rotation == 0 || rotation == 90 || rotation == 180 || rotation == 270,
        );
 
   final SourceId id;
+
+  /// Where the video is read from: a file path on desktop, a `content://`
+  /// URI string on Android. Players, probes and thumbnailers take it as is.
   final String path;
 
   /// Playable length; no clip of this source reaches past it.
@@ -47,4 +51,15 @@ final class Source {
 
   /// Video stream bitrate in bits per second, when known.
   final int? videoBitRate;
+
+  /// The file's name as the system shows it, for a [path] that does not end
+  /// in it (Android content URIs); null otherwise.
+  final String? displayName;
+
+  /// What the user knows the file by: [displayName], else the last segment
+  /// of [path].
+  String get name => displayName ?? fileNameOf(path);
 }
+
+/// The last segment of a file path (either separator) or URI.
+String fileNameOf(String path) => path.split(RegExp(r'[/\\]')).last;

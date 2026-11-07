@@ -59,6 +59,7 @@ jobs:
       pull-requests: read
     outputs:
       windows: ${{ steps.filter.outputs.windows }}
+      android: ${{ steps.filter.outputs.android }}
     steps:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
@@ -70,6 +71,11 @@ jobs:
               - 'pubspec.*'
               - 'installer/**'
               - 'tool/**'
+              - '.github/workflows/ci.yml'
+            android:
+              - 'lib/**'
+              - 'android/**'
+              - 'pubspec.*'
               - '.github/workflows/ci.yml'
 
   windows:
@@ -141,6 +147,78 @@ jobs:
         with:
           name: cutcap-windows
           path: ${{ steps.installer.outputs.path }}
+          retention-days: 7
+          if-no-files-found: error
+
+  # Debug APK for device checks (arm64 only: every supported phone, and a
+  # third of the size). The signed release APK is CUTCAP-10's.
+  android:
+    name: Android debug APK
+    needs: [check, changes]
+    # Gated like `windows`.
+    if: >-
+      !cancelled() && needs.check.result == 'success' && (
+        github.ref == 'refs/heads/main' ||
+        startsWith(github.ref, 'refs/tags/v') ||
+        github.event_name == 'workflow_dispatch' ||
+        needs.changes.outputs.android == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # AGP 9 runs on JDK 17+; Flutter's Android docs pin 17.
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Caches the Gradle home (wrapper, dependencies, build cache). No
+      # configuration cache: Flutter 3.44's Gradle plugin cannot be stored
+      # in it (its :app:DebugMinSdkCheck task holds a WeakHashMap).
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: pubspec.yaml
+          cache: true
+
+      - run: flutter pub get --enforce-lockfile
+
+      # One debug key for every run, so a new debug APK installs over the
+      # last one (adb install -r) instead of needing an uninstall. Made on
+      # the first run, then restored; debug keys are not secret. The
+      # passwords and alias are the SDK debug key's defaults, which the
+      # debug signing config keeps (android/app/build.gradle.kts).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: debug-key
+        with:
+          path: ${{ runner.temp }}/cutcap-debug.keystore
+          key: android-debug-keystore-v1
+
+      - if: steps.debug-key.outputs.cache-hit != 'true'
+        run: >-
+          keytool -genkeypair -keystore "$RUNNER_TEMP/cutcap-debug.keystore"
+          -storepass android -alias androiddebugkey -keypass android
+          -keyalg RSA -keysize 2048 -validity 10000
+          -dname "CN=Android Debug,O=Android,C=US"
+
+      - run: flutter build apk --debug --target-platform android-arm64
+        env:
+          CUTCAP_DEBUG_KEYSTORE: ${{ runner.temp }}/cutcap-debug.keystore
+
+      # Kotlin unit tests; the APK build above wrote local.properties and
+      # the Gradle wrapper.
+      - run: ./gradlew :app:testDebugUnitTest
+        working-directory: android
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cutcap-android-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 7
           if-no-files-found: error
 

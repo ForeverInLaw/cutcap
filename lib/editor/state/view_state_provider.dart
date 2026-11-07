@@ -2,7 +2,6 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 
 import '../../domain/editor_session.dart';
 import '../editor_view_state.dart';
@@ -26,7 +25,7 @@ final clipViewsProvider = Provider<List<ClipView>>((ref) {
     final isMissing = missing.contains(clip.sourceId);
     return ClipView(
       id: clip.id,
-      name: p.basename(source.path),
+      name: source.name,
       duration: clip.duration,
       aspectRatio: size.width / size.height,
       isSelected: clip.id == selected,
