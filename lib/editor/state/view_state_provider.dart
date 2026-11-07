@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
@@ -77,6 +78,8 @@ final editorViewStateProvider = Provider<EditorViewState>((ref) {
     canAdd: editable,
     canExport: editable && list.clips.isNotEmpty,
     export: export,
+    // Drops from Explorer; Android has no desktop to drag from.
+    acceptsFileDrop: defaultTargetPlatform == TargetPlatform.windows,
     unreadableFiles: ref.watch(importProblemsProvider),
     isTrimming: timelineEnd != null,
   );

@@ -104,6 +104,27 @@ void main() {
     expect(player.calls.last, 'seek 0');
   });
 
+  test(
+    'appends the files the app was opened with to the restored edit',
+    () async {
+      await editAndQuit();
+
+      final container = launch();
+      await container.read(editorControllerProvider).launch([_c.path, _b.path]);
+
+      expect(spans(container), [
+        ('a.mp4', 0, 1000),
+        ('a.mp4', 1000, 4000),
+        ('b.mp4', 0, 3000),
+        ('c.mp4', 0, 2000),
+        ('c.mp4', 0, 2000),
+        ('b.mp4', 0, 3000),
+      ]);
+      // The append is autosaved; let it land before the folder goes.
+      await container.read(sessionStoreProvider).flush();
+    },
+  );
+
   test('saves every edit as it happens', () async {
     final container = launch();
     final editor = container.read(editorControllerProvider);
