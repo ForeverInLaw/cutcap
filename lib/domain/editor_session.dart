@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'edit_list.dart';
 import 'source.dart';
 
@@ -14,6 +16,19 @@ export 'source.dart';
 final class EditorSession {
   /// An empty session.
   const EditorSession() : this._(const EditList(), const [], const [], 0);
+
+  /// A session continuing [editList] as saved earlier: no undo history, and
+  /// new clips get ids above the ones already in it.
+  EditorSession.restored(EditList editList)
+    : this._(
+        editList,
+        const [],
+        const [],
+        editList.clips.fold(
+          0,
+          (next, clip) => math.max(next, clip.id.value + 1),
+        ),
+      );
 
   const EditorSession._(this.editList, this._undo, this._redo, this._nextId);
 

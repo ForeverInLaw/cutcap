@@ -1,3 +1,4 @@
+import '../media/media_tools.dart';
 import 'encoder_probe.dart';
 import 'export_plan.dart';
 
@@ -22,7 +23,7 @@ List<String> ffmpegExportArguments(
   'pipe:1',
   for (final clip in plan.clips) ...[
     '-ss',
-    _seconds(clip.seek),
+    ffmpegSeconds(clip.seek),
     '-i',
     clip.path,
   ],
@@ -62,7 +63,7 @@ String _filterGraph(ExportPlan plan) {
 
   final chains = <String>[];
   for (final (i, clip) in plan.clips.indexed) {
-    final duration = _seconds(clip.duration);
+    final duration = ffmpegSeconds(clip.duration);
     final samples = clip.audioSamples;
     chains.add(
       '[$i:v:0]trim=duration=$duration,setpts=PTS-STARTPTS,$video,'
@@ -79,11 +80,4 @@ String _filterGraph(ExportPlan plan) {
   final pads = [for (var i = 0; i < plan.clips.length; i++) '[v$i][a$i]'];
   chains.add('${pads.join()}concat=n=${plan.clips.length}:v=1:a=1[v][a]');
   return chains.join(';');
-}
-
-/// [duration] as seconds with microsecond digits, e.g. `2.016667`.
-String _seconds(Duration duration) {
-  final us = duration.inMicroseconds;
-  final fraction = (us % Duration.microsecondsPerSecond).toString();
-  return '${us ~/ Duration.microsecondsPerSecond}.${fraction.padLeft(6, '0')}';
 }

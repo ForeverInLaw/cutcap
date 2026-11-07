@@ -20,12 +20,61 @@ final class TimelineWindow {
         (span.inMicroseconds * fraction.clamp(0.0, 1.0)).round(),
   );
 
+  /// The window [factor] times as long (below 1 zooms in), with the time at
+  /// [anchor] (a fraction across, where the cursor is) kept in place. The
+  /// span stays between [minSpan] and the [total] length of the sequence.
+  TimelineWindow zoomedBy(
+    double factor, {
+    required double anchor,
+    required Duration total,
+    required Duration minSpan,
+  }) {
+    final zoomed = _clamp(
+      Duration(microseconds: (span.inMicroseconds * factor).round()),
+      minSpan,
+      total,
+    );
+    final pinned = timeAt(anchor);
+    final start = pinned - zoomed * anchor;
+    return TimelineWindow(start, start + zoomed).within(total);
+  }
+
+  /// The window moved [delta] along the sequence, stopping at either end.
+  TimelineWindow scrolledBy(Duration delta, {required Duration total}) =>
+      TimelineWindow(start + delta, end + delta).within(total);
+
+  /// This window if [time] is in view, else the page that brings it in:
+  /// starting at [time] past the end, ending at it before the start, the
+  /// way editors page the timeline after the playhead.
+  TimelineWindow revealing(Duration time, {required Duration total}) {
+    if (time < start) return TimelineWindow(time - span, time).within(total);
+    if (time >= end) return TimelineWindow(time, time + span).within(total);
+    return this;
+  }
+
+  /// The window slid inside a sequence [total] long; the whole sequence
+  /// when it is shorter than the span.
+  TimelineWindow within(Duration total) {
+    if (span >= total) return TimelineWindow(Duration.zero, total);
+    final from = _clamp(start, Duration.zero, total - span);
+    return from == start ? this : TimelineWindow(from, from + span);
+  }
+
   @override
   bool operator ==(Object other) =>
       other is TimelineWindow && other.start == start && other.end == end;
 
   @override
   int get hashCode => Object.hash(start, end);
+
+  @override
+  String toString() => 'TimelineWindow($start, $end)';
+}
+
+/// [value] kept within [lower] and [upper]; [upper] wins when they cross.
+Duration _clamp(Duration value, Duration lower, Duration upper) {
+  final raised = value < lower ? lower : value;
+  return raised > upper ? upper : raised;
 }
 
 /// One mark on the ruler.
