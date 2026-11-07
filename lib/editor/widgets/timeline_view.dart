@@ -182,7 +182,7 @@ class _TimelineViewState extends State<TimelineView> {
                     child: ControlButton(
                       icon: Icons.add_sharp,
                       label: AppLocalizations.of(context).addVideo,
-                      onPressed: actions.onAddVideo,
+                      onPressed: state.canAdd ? actions.onAddVideo : null,
                       size: metrics.filmHeight,
                       width: addWidth,
                     ),

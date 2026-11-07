@@ -5,7 +5,9 @@ import 'package:path/path.dart' as p;
 
 import '../../domain/editor_session.dart';
 import '../../media/media_probe.dart';
+import '../editor_view_state.dart';
 import 'editor_state.dart';
+import 'export_notifier.dart';
 import 'timeline_zoom.dart';
 
 final editorControllerProvider = Provider<EditorController>(
@@ -18,7 +20,9 @@ final editorControllerProvider = Provider<EditorController>(
 ///
 /// Edits and scrubbing pause playback first, and every change of the
 /// playhead or the sequence brings the preview to the frame under the
-/// playhead.
+/// playhead. While an export runs the track is locked: edits are ignored
+/// so the file matches what the user sees, while scrubbing and playback
+/// still work.
 final class EditorController {
   EditorController(this._ref);
 
@@ -31,11 +35,13 @@ final class EditorController {
   EditList get _list => _ref.read(sessionProvider).editList;
   Duration get _playhead => _ref.read(playheadProvider);
   Transport get _transport => _ref.read(transportProvider);
+  bool get _locked => _ref.read(exportProvider) is ExportRunning;
 
   // Adding -----------------------------------------------------------------
 
   /// Opens the picker and adds what the user chose.
   Future<void> addVideos() async {
+    if (_locked) return;
     final paths = await _ref.read(videoPickerProvider)();
     await addFiles(paths);
   }
@@ -43,7 +49,7 @@ final class EditorController {
   /// Probes [paths] and appends the usable ones in the given order as one
   /// undo step; the names of the rest go to [importProblemsProvider].
   Future<void> addFiles(List<String> paths) async {
-    if (paths.isEmpty) return;
+    if (paths.isEmpty || _locked) return;
     final probe = _ref.read(mediaProbeProvider);
     Future<Source?> usable(String path) async {
       try {
@@ -60,7 +66,8 @@ final class EditorController {
       for (final (i, source) in results.indexed)
         if (source == null) p.basename(paths[i]),
     ]);
-    if (sources.isEmpty) return;
+    // An export may have started while the files were probed.
+    if (sources.isEmpty || _locked) return;
     final wasEmpty = _list.clips.isEmpty;
     _session.addSources(sources);
     if (wasEmpty) _seekTo(Duration.zero);
@@ -140,6 +147,7 @@ final class EditorController {
   /// Runs [change], marks the clip it returns, drops a selection the
   /// change removed, and keeps the playhead inside the sequence.
   void _edit(ClipId? Function() change) {
+    if (_locked) return;
     _pauseIfPlaying();
     final before = _ref.read(sessionProvider);
     final edited = change();
@@ -160,6 +168,7 @@ final class EditorController {
 
   /// Starts dragging [edge] of clip [id]; the whole drag is one undo step.
   void beginTrim(ClipId id, ClipEdge edge) {
+    if (_locked) return;
     _pauseIfPlaying();
     final clip = _list.clips.firstWhere((clip) => clip.id == id);
     _trim = (
@@ -205,6 +214,7 @@ final class EditorController {
   /// Starts dragging clip [id] along the track; the whole drag is one undo
   /// step.
   void beginReorder(ClipId id) {
+    if (_locked) return;
     _pauseIfPlaying();
     _reordering = id;
     _session.beginGesture();

@@ -108,6 +108,15 @@ final sequencePlaybackProvider = Provider<SequencePlayback>((ref) {
       ref.read(timelineZoomProvider.notifier).reveal(time);
     },
     onEnded: () => ref.read(transportProvider.notifier).set(Transport.paused),
+    // Reported like a file that could not be added; the clip stays, since
+    // ffmpeg may still export it.
+    onUnplayable: (path) {
+      final problems = ref.read(importProblemsProvider);
+      final name = p.basename(path);
+      if (!problems.contains(name)) {
+        ref.read(importProblemsProvider.notifier).set([...problems, name]);
+      }
+    },
   );
   ref.onDispose(playback.dispose);
   return playback;

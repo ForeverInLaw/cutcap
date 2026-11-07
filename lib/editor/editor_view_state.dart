@@ -20,6 +20,7 @@ final class EditorViewState {
     this.canUndo = false,
     this.canRedo = false,
     this.canClear = false,
+    this.canAdd = true,
     this.canExport = false,
     this.export = const ExportIdle(),
     this.acceptsFileDrop = false,
@@ -48,6 +49,9 @@ final class EditorViewState {
   final bool canUndo;
   final bool canRedo;
   final bool canClear;
+
+  /// Off while an export runs: the track is locked until it ends.
+  final bool canAdd;
   final bool canExport;
   final ExportStatus export;
 
@@ -143,10 +147,26 @@ final class ExportDone extends ExportStatus {
 }
 
 final class ExportFailed extends ExportStatus {
-  const ExportFailed(this.reason);
+  const ExportFailed(this.problem, {this.detail});
 
-  /// Localized sentence naming the problem.
-  final String reason;
+  /// What went wrong, told to the user as a localized headline.
+  final ExportProblem problem;
+
+  /// The exporter's own technical account (English, e.g. ffmpeg's last
+  /// lines), shown as secondary text under the headline.
+  final String? detail;
+}
+
+/// Why an export did not produce a file.
+enum ExportProblem {
+  /// The ffmpeg the export runs on is neither bundled nor on `PATH`.
+  exporterMissing,
+
+  /// The chosen file is one of the clips' sources.
+  targetIsSource,
+
+  /// The exporter ran and failed; [ExportFailed.detail] says how.
+  failed,
 }
 
 /// Everything the user can ask the editor to do. Availability lives in

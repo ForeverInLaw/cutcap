@@ -94,7 +94,7 @@ final class EditorControls {
   Widget addVideo({bool inBar = true}) => ControlButton(
     icon: inBar ? null : Icons.add_sharp,
     label: _l10n.addVideo,
-    onPressed: actions.onAddVideo,
+    onPressed: _when(state.canAdd, actions.onAddVideo),
     kind: inBar ? ControlKind.plain : ControlKind.filled,
     showLabel: true,
     size: inBar ? _barSize : _size,

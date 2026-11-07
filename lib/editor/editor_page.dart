@@ -8,6 +8,7 @@ import 'editor_shortcuts.dart';
 import 'editor_view_state.dart';
 import 'state/editor_controller.dart';
 import 'state/editor_state.dart';
+import 'state/export_notifier.dart';
 import 'state/view_state_provider.dart';
 
 /// The editor wired up: [EditorScreen] fed from the editor state, its
@@ -24,7 +25,7 @@ class EditorPage extends ConsumerWidget {
       controller: controller,
       child: EditorScreen(
         state: state,
-        actions: _actions(controller),
+        actions: _actions(controller, ref.read(exportProvider.notifier)),
         // The player starts with the first clip, not with the app.
         preview: state.isEmpty
             ? null
@@ -33,10 +34,12 @@ class EditorPage extends ConsumerWidget {
     );
   }
 
-  static EditorActions _actions(EditorController editor) => EditorActions(
+  static EditorActions _actions(
+    EditorController editor,
+    ExportNotifier export,
+  ) => EditorActions(
     onAddVideo: () => unawaited(editor.addVideos()),
-    // Wired to the export engine by CUTCAP-6.
-    onExport: _notYet,
+    onExport: () => unawaited(export.start()),
     onPlayPause: editor.togglePlay,
     onStepBackward: () => editor.stepFrame(-1),
     onStepForward: () => editor.stepFrame(1),
@@ -56,12 +59,11 @@ class EditorPage extends ConsumerWidget {
     onReorderUpdate: editor.updateReorder,
     onReorderEnd: editor.endReorder,
     onDismissUnreadable: editor.dismissImportProblems,
-    onCancelExport: _notYet,
-    onOpenExport: _notYet,
-    onShareExport: _notYet,
-    onRetryExport: _notYet,
-    onDismissExport: _notYet,
+    onCancelExport: export.cancel,
+    onOpenExport: export.open,
+    // Android only, with CUTCAP-10; Windows never offers Share.
+    onShareExport: () {},
+    onRetryExport: () => unawaited(export.retry()),
+    onDismissExport: export.dismiss,
   );
-
-  static void _notYet() {}
 }

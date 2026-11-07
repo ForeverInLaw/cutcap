@@ -31,7 +31,11 @@ final class MediaKitPreviewPlayer implements PreviewPlayer {
         .firstWhere((duration) => duration > Duration.zero)
         .timeout(_loadTimeout);
     await _player.open(Media(path), play: false);
-    await loaded;
+    try {
+      await loaded;
+    } on TimeoutException {
+      throw UnplayableMedia(path);
+    }
   }
 
   @override

@@ -13,12 +13,14 @@ import 'preview_player.dart';
 /// replace each other and only the latest is carried out next.
 ///
 /// Sequence time flows out through [onPosition] while playing; [onEnded]
-/// fires when playback stops by itself at either end of the sequence.
+/// fires when playback stops by itself at either end of the sequence;
+/// [onUnplayable] names a file the player could not open.
 final class SequencePlayback {
   SequencePlayback(
     this._player, {
     required this.onPosition,
     required this.onEnded,
+    required this.onUnplayable,
   }) {
     _subscriptions = [
       _player.position.listen(_onSourcePosition),
@@ -29,6 +31,7 @@ final class SequencePlayback {
   final PreviewPlayer _player;
   final void Function(Duration sequenceTime) onPosition;
   final void Function() onEnded;
+  final void Function(String path) onUnplayable;
 
   late final List<StreamSubscription<Object?>> _subscriptions;
 
@@ -123,10 +126,13 @@ final class SequencePlayback {
     try {
       for (var target = _pending; target != null; target = _pending) {
         _pending = null;
+        // A broken file must not wedge later requests; report and go on.
         try {
           await _apply(target);
+        } on UnplayableMedia catch (error) {
+          _openPath = null;
+          onUnplayable(error.path);
         } on Object catch (error, stack) {
-          // A broken file must not wedge later requests; report and go on.
           _openPath = null;
           Zone.current.handleUncaughtError(error, stack);
         }
