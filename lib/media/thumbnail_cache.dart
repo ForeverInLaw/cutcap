@@ -25,7 +25,8 @@ final class ThumbnailUnavailable implements Exception {
 /// Filmstrip thumbnails on disk, rendered by a [ThumbnailSource] on demand.
 ///
 /// Files live under [directory] in a folder per video, named from its
-/// path, size and modification time, so a changed file gets new frames.
+/// path and its [stamp] (by default [fileStamp]: size and modification
+/// time), so a changed file gets new frames.
 /// Requests made together are rendered together, one pass per video, the
 /// newest first, and only one render runs at a time so the preview keeps
 /// the machine. Decoded images are kept in memory by Flutter's image cache
@@ -36,9 +37,11 @@ final class ThumbnailCache {
     required this._source,
     required Future<Directory> Function() directory,
     this.batchSize = 16,
+    this._stamp = fileStamp,
   }) : _locate = directory;
 
   final ThumbnailSource _source;
+  final Future<String?> Function(String videoPath) _stamp;
   final Future<Directory> Function() _locate;
   late final Future<Directory> _directory = _locate();
 
@@ -91,11 +94,10 @@ final class ThumbnailCache {
 
   /// The folder for the video's current contents, or null when it is gone.
   Future<String?> _folderOf(String videoPath) async {
-    final stat = await File(videoPath).stat();
-    if (stat.type == FileSystemEntityType.notFound) return null;
-    final stamp =
-        '$videoPath|${stat.size}|${stat.modified.microsecondsSinceEpoch}';
-    final name = sha1.convert(utf8.encode(stamp)).toString().substring(0, 20);
+    final stamp = await _stamp(videoPath);
+    if (stamp == null) return null;
+    final key = utf8.encode('$videoPath|$stamp');
+    final name = sha1.convert(key).toString().substring(0, 20);
     return p.join((await _directory).path, name);
   }
 
@@ -185,4 +187,12 @@ final class _Job {
 
   bool sameRender(_Job other) =>
       other.videoPath == videoPath && other.height == height;
+}
+
+/// What tells the file at [path] apart from the same file changed: its size
+/// and modification time; null when there is no such file.
+Future<String?> fileStamp(String path) async {
+  final stat = await File(path).stat();
+  if (stat.type == FileSystemEntityType.notFound) return null;
+  return '${stat.size}|${stat.modified.microsecondsSinceEpoch}';
 }

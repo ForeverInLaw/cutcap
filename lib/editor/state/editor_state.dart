@@ -7,8 +7,10 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../domain/editor_session.dart';
+import '../../media/android_media_probe.dart';
 import '../../media/ffprobe_media_probe.dart';
 import '../../media/media_probe.dart';
+import '../../platform/android_documents.dart';
 import '../../player/media_kit_preview_player.dart';
 import '../../player/preview_player.dart';
 import '../../player/sequence_playback.dart';
@@ -55,10 +57,12 @@ final sessionStoreProvider = Provider<SessionStore>(
   ),
 );
 
-/// Whether a source file is still there; tests override it.
+/// Whether a source file is still there (on Android, still readable by its
+/// URI); tests override it.
 final sourceExistsProvider = Provider<Future<bool> Function(String path)>(
-  (ref) =>
-      (path) => File(path).exists(),
+  (ref) => Platform.isAndroid
+      ? AndroidDocuments.exists
+      : (path) => File(path).exists(),
 );
 
 /// Names of the files the last add could not open.
@@ -78,13 +82,25 @@ final previewPlayerProvider = Provider<PreviewPlayer>((ref) {
   return player;
 });
 
+/// Reads the facts of a video: ffprobe on desktop, the platform's media
+/// framework on Android.
 final mediaProbeProvider = Provider<MediaProbe>(
-  (ref) => const FfprobeMediaProbe(),
+  (ref) => Platform.isAndroid
+      ? const AndroidMediaProbe()
+      : const FfprobeMediaProbe(),
 );
 
-/// Asks the user for videos; paths come back in the picker's order.
+/// Asks the user for videos; paths (Android: content URIs) come back in the
+/// picker's order.
 final videoPickerProvider = Provider<Future<List<String>> Function()>(
-  (ref) => _pickVideos,
+  (ref) => Platform.isAndroid ? AndroidDocuments.pick : _pickVideos,
+);
+
+/// Videos shared into the app, a batch per share (Android "Share →
+/// cutcap"); never emits on desktop.
+final sharedVideosProvider = Provider<Stream<List<String>>>(
+  (ref) =>
+      Platform.isAndroid ? AndroidDocuments.shared() : const Stream.empty(),
 );
 
 Future<List<String>> _pickVideos() async {
@@ -112,7 +128,10 @@ final sequencePlaybackProvider = Provider<SequencePlayback>((ref) {
     // ffmpeg may still export it.
     onUnplayable: (path) {
       final problems = ref.read(importProblemsProvider);
-      final name = p.basename(path);
+      final sources = ref.read(sessionProvider).editList.sources.values;
+      final name =
+          sources.where((source) => source.path == path).firstOrNull?.name ??
+          fileNameOf(path);
       if (!problems.contains(name)) {
         ref.read(importProblemsProvider.notifier).set([...problems, name]);
       }
