@@ -37,4 +37,12 @@ jobs:
 
       - run: flutter analyze
 
+      # The distro ffmpeg (6.x on ubuntu-latest) for the `ffmpeg`-tagged
+      # export tests; without a GPU the encoder probe falls through to libx264.
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends ffmpeg
+          ffmpeg -hide_banner -version | head -n 1
+
       - run: flutter test

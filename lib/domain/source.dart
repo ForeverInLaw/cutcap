@@ -16,6 +16,8 @@ final class Source {
     required this.rotation,
     required this.frameRate,
     required this.hasAudio,
+    this.averageFrameRate,
+    this.videoBitRate,
   }) : assert(duration > Duration.zero),
        assert(
          rotation == 0 || rotation == 90 || rotation == 180 || rotation == 270,
@@ -34,7 +36,15 @@ final class Source {
   /// upright.
   final int rotation;
 
-  /// Nominal rate; its grid is what splits and trims snap to.
+  /// Nominal rate (ffprobe `r_frame_rate`); its grid is what splits and
+  /// trims snap to.
   final FrameRate frameRate;
   final bool hasAudio;
+
+  /// Mean rate over the file (ffprobe `avg_frame_rate`), when known. A value
+  /// that differs from [frameRate] marks a variable-frame-rate source.
+  final FrameRate? averageFrameRate;
+
+  /// Video stream bitrate in bits per second, when known.
+  final int? videoBitRate;
 }
