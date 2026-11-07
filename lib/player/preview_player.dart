@@ -6,7 +6,8 @@ import 'package:flutter/widgets.dart';
 /// opens and seeks on it. The interface exists so a platform can swap the
 /// engine (Android may move to ExoPlayer) without touching the editor.
 abstract interface class PreviewPlayer {
-  /// Loads the file at [path], paused. Completes once it can be sought.
+  /// Loads the file at [path], paused. Completes once it can be sought;
+  /// throws [UnplayableMedia] when the engine cannot play the file.
   Future<void> open(String path);
 
   /// Seeks exactly: the player shows the first frame whose timestamp is at
@@ -28,4 +29,15 @@ abstract interface class PreviewPlayer {
   Widget buildView();
 
   Future<void> dispose();
+}
+
+/// The player could not load the file at [path], e.g. a container ffprobe
+/// reads but the playback engine does not.
+final class UnplayableMedia implements Exception {
+  const UnplayableMedia(this.path);
+
+  final String path;
+
+  @override
+  String toString() => 'The player cannot open $path.';
 }

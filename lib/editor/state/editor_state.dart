@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../../domain/editor_session.dart';
 import '../../media/ffprobe_media_probe.dart';
@@ -79,6 +80,15 @@ final sequencePlaybackProvider = Provider<SequencePlayback>((ref) {
     ref.watch(previewPlayerProvider),
     onPosition: (time) => ref.read(playheadProvider.notifier).set(time),
     onEnded: () => ref.read(transportProvider.notifier).set(Transport.paused),
+    // Reported like a file that could not be added; the clip stays, since
+    // ffmpeg may still export it.
+    onUnplayable: (path) {
+      final problems = ref.read(importProblemsProvider);
+      final name = p.basename(path);
+      if (!problems.contains(name)) {
+        ref.read(importProblemsProvider.notifier).set([...problems, name]);
+      }
+    },
   );
   ref.onDispose(playback.dispose);
   return playback;

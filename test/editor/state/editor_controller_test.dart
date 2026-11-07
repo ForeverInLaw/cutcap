@@ -86,6 +86,14 @@ void main() {
       expect(container.read(importProblemsProvider), isEmpty);
     });
 
+    test('names a probed file the player then cannot open', () async {
+      player.unplayable.add(_a.path);
+      await add([_a, _b]);
+
+      expect(clipNames(), [_a.path, _b.path]);
+      expect(container.read(importProblemsProvider), ['a.mp4']);
+    });
+
     test('shows the first frame once the track gets its first clip', () async {
       await add([_a]);
 
