@@ -15,6 +15,9 @@ String probeJson({
   String sideData = '',
   String tags = '{}',
   bool audio = true,
+  String? videoBitRate,
+  String audioBitRate = '192000',
+  String? formatBitRate,
 }) =>
     '''
 {
@@ -28,6 +31,7 @@ String probeJson({
       "r_frame_rate": "$rFrameRate",
       "avg_frame_rate": "$avgFrameRate",
       ${streamDuration == null ? '' : '"duration": $streamDuration,'}
+      ${videoBitRate == null ? '' : '"bit_rate": "$videoBitRate",'}
       "tags": $tags
       $sideData
     }${audio ? ''',
@@ -36,11 +40,13 @@ String probeJson({
       "codec_name": "aac",
       "codec_type": "audio",
       "r_frame_rate": "0/0",
+      "bit_rate": "$audioBitRate",
       "duration": "4.021333"
     }''' : ''}
   ],
   "format": {
     "filename": "a.mp4",
+    ${formatBitRate == null ? '' : '"bit_rate": "$formatBitRate",'}
     "duration": "$formatDuration"
   }
 }''';
@@ -80,6 +86,36 @@ void main() {
     );
 
     expect(source.duration, const Duration(milliseconds: 6250));
+  });
+
+  test('keeps the average rate apart from the nominal one', () {
+    // A variable-rate recording: 60 fps nominal, 25.28 fps on average.
+    final source = parse(
+      probeJson(rFrameRate: '60/1', avgFrameRate: '2250/89'),
+    );
+
+    expect(source.frameRate, const FrameRate(60, 1));
+    expect(source.averageFrameRate, const FrameRate(2250, 89));
+  });
+
+  test('reads the video bitrate from the video stream', () {
+    final source = parse(
+      probeJson(videoBitRate: '1408317', formatBitRate: '1600000'),
+    );
+
+    expect(source.videoBitRate, 1408317);
+  });
+
+  test('estimates the video bitrate from the container without audio', () {
+    final source = parse(
+      probeJson(formatBitRate: '1600000', audioBitRate: '192000'),
+    );
+
+    expect(source.videoBitRate, 1408000);
+  });
+
+  test('leaves the bitrate unknown when nothing reports one', () {
+    expect(parse(probeJson()).videoBitRate, isNull);
   });
 
   test('reports no audio when the file has no audio stream', () {

@@ -47,11 +47,12 @@ final class FfprobeMediaProbe implements MediaProbe {
     } on FormatException catch (error) {
       fail('unreadable ffprobe output: ${error.message}');
     }
-    if (report case {'streams': final List<Object?> streams}) {
+    if (report case {'streams': final List<Object?> list}) {
+      final streams = list.whereType<Map<String, Object?>>();
       final video = streams
-          .whereType<Map<String, Object?>>()
           .where((stream) => stream['codec_type'] == 'video')
           .firstOrNull;
+      final audio = streams.where((stream) => stream['codec_type'] == 'audio');
       if (video == null) fail('no video stream');
       final (width, height) = switch (video) {
         {'width': final int width, 'height': final int height}
@@ -59,12 +60,12 @@ final class FfprobeMediaProbe implements MediaProbe {
           (width, height),
         _ => fail('no frame size'),
       };
+      final format = switch (report) {
+        {'format': final Map<String, Object?> format} => format,
+        _ => const <String, Object?>{},
+      };
       final duration =
-          _seconds(video['duration']) ??
-          _seconds(switch (report) {
-            {'format': {'duration': final Object? duration}} => duration,
-            _ => null,
-          });
+          _seconds(video['duration']) ?? _seconds(format['duration']);
       if (duration == null || duration <= Duration.zero) fail('no duration');
       final rate =
           _rate(video['r_frame_rate']) ??
@@ -77,12 +78,32 @@ final class FfprobeMediaProbe implements MediaProbe {
         resolution: (width: width, height: height),
         rotation: _clockwiseRotation(video),
         frameRate: rate,
-        hasAudio: streams.whereType<Map<String, Object?>>().any(
-          (stream) => stream['codec_type'] == 'audio',
-        ),
+        hasAudio: audio.isNotEmpty,
+        averageFrameRate: _rate(video['avg_frame_rate']),
+        videoBitRate: _videoBitRate(video, audio, format),
       );
     }
     fail('no streams');
+  }
+
+  /// The video stream's own bitrate, else the container's minus its audio
+  /// (MKV and WebM report no per-stream rate); null when neither is known.
+  static int? _videoBitRate(
+    Map<String, Object?> video,
+    Iterable<Map<String, Object?>> audio,
+    Map<String, Object?> format,
+  ) {
+    int? bitRate(Map<String, Object?> json) => switch (json['bit_rate']) {
+      final String value => int.tryParse(value),
+      _ => null,
+    };
+    final own = bitRate(video);
+    if (own != null) return own;
+    final total = bitRate(format);
+    if (total == null) return null;
+    final rest =
+        total - audio.map(bitRate).nonNulls.fold<int>(0, (a, b) => a + b);
+    return rest > 0 ? rest : null;
   }
 
   /// ffprobe prints times as decimal seconds ("2.033333"); read them to the
