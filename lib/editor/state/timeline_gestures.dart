@@ -2,8 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
-import '../ruler.dart';
-
 /// One update of a touch pan or pinch on the track, as the two intents the
 /// track sends: scroll by [scroll], then zoom by [factor] around [anchor].
 ///
@@ -16,9 +14,9 @@ final class TrackPinch {
 
   /// The step from fingers centred at [fromX] with scale [fromScale] to
   /// [toX] and [toScale] (px across a track [trackWidth] wide showing
-  /// [window]; scale grows as the fingers spread).
+  /// [span] of the sequence; scale grows as the fingers spread).
   factory TrackPinch.between({
-    required TimelineWindow window,
+    required Duration span,
     required double trackWidth,
     required double fromX,
     required double toX,
@@ -27,7 +25,7 @@ final class TrackPinch {
   }) {
     final moved = (fromX - toX) / trackWidth;
     return TrackPinch._(
-      Duration(microseconds: (window.span.inMicroseconds * moved).round()),
+      Duration(microseconds: (span.inMicroseconds * moved).round()),
       fromScale / toScale,
       (toX / trackWidth).clamp(0.0, 1.0),
     );

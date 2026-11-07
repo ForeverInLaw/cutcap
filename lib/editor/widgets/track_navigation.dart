@@ -53,12 +53,23 @@ class _TrackNavigationState extends State<TrackNavigation>
   double _lastScale = 1;
   int _fingers = 0;
 
+  /// Zoom sent since [TrackNavigation.window] was last rebuilt. Both
+  /// fingers' moves usually arrive within one frame; the second must
+  /// scroll at the span the first one's zoom left.
+  double _unbuiltZoom = 1;
+
   double get _width => widget.trackWidth;
 
   @override
   void initState() {
     super.initState();
     _glide = createTicker(_glideStep);
+  }
+
+  @override
+  void didUpdateWidget(TrackNavigation old) {
+    super.didUpdateWidget(old);
+    if (widget.window != old.window) _unbuiltZoom = 1;
   }
 
   @override
@@ -96,7 +107,7 @@ class _TrackNavigationState extends State<TrackNavigation>
     if (_width <= 0) return;
     _fingers = math.max(_fingers, details.pointerCount);
     final step = TrackPinch.between(
-      window: widget.window,
+      span: widget.window.span * _unbuiltZoom,
       trackWidth: _width,
       fromX: _lastX,
       toX: details.localFocalPoint.dx,
@@ -107,7 +118,10 @@ class _TrackNavigationState extends State<TrackNavigation>
     _lastScale = details.scale;
     final actions = widget.actions;
     if (step.scroll != Duration.zero) actions.onScrollTimeline(step.scroll);
-    if (step.factor != 1) actions.onZoom(step.factor, step.anchor, _width);
+    if (step.factor != 1) {
+      actions.onZoom(step.factor, step.anchor, _width);
+      _unbuiltZoom *= step.factor;
+    }
   }
 
   /// A one-finger drag that ends in a flick glides on, slowing the way

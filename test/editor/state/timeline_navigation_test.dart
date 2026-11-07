@@ -146,7 +146,7 @@ void main() {
       double toScale = 1,
     }) {
       final step = TrackPinch.between(
-        window: window(),
+        span: window().span,
         trackWidth: _trackWidth,
         fromX: fromX,
         toX: toX,
@@ -180,6 +180,28 @@ void main() {
       pinch(fromX: 300, toX: 600, toScale: 1.25);
       expect(window(), TimelineWindow(_ms(1475), _ms(4275)));
       expect(window().timeAt(600 / _trackWidth), _ms(2875));
+    });
+  });
+  group('dragging on the zoomed track', () {
+    test('a move that scrolled the track leaves it where it was dropped', () {
+      zoom(0.25);
+      final a = container.read(sessionProvider).editList.clips.first.id;
+      editor.beginReorder(a);
+      editor.scrollTimeline(_ms(5000));
+      editor.updateReorder(_ms(6800));
+      editor.endReorder();
+      expect(window(), TimelineWindow(_ms(5000), _ms(6750)));
+      expect(container.read(sessionProvider).editList.clips.last.id, a);
+    });
+
+    test('so does a trim', () {
+      zoom(0.25);
+      final a = container.read(sessionProvider).editList.clips.first.id;
+      editor.beginTrim(a, ClipEdge.outPoint);
+      editor.scrollTimeline(_ms(2000));
+      editor.updateTrim(_ms(-500));
+      editor.endTrim();
+      expect(window(), TimelineWindow(_ms(2000), _ms(3750)));
     });
   });
 }

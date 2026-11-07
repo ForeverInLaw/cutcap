@@ -156,12 +156,14 @@ final class EditorController {
     _afterEdit();
   }
 
-  void _afterEdit() {
+  /// Drops a selection the edit removed and shows the frame now under the
+  /// playhead, paging the track to it unless [keepView].
+  void _afterEdit({bool keepView = false}) {
     final selected = _ref.read(selectionProvider);
     if (selected != null && !_list.clips.any((clip) => clip.id == selected)) {
       _ref.read(selectionProvider.notifier).set(null);
     }
-    _seekTo(_playhead);
+    _seekTo(_playhead, reveal: !keepView);
   }
 
   // Trimming ---------------------------------------------------------------
@@ -243,11 +245,14 @@ final class EditorController {
     _endGesture(id);
   }
 
+  /// Ends a drag as one undo step. The track stays where the drag left it
+  /// (it may have scrolled there by itself), rather than paging back to the
+  /// playhead.
   void _endGesture(ClipId id) {
     final changed = _session.gestureChanged;
     _session.endGesture();
     if (changed) _ref.read(justEditedProvider.notifier).set(id);
-    _afterEdit();
+    _afterEdit(keepView: true);
   }
 
   // Transport --------------------------------------------------------------
@@ -318,8 +323,8 @@ final class EditorController {
   }
 
   /// Sets the playhead, kept inside the sequence, and shows its frame.
-  void _seekTo(Duration time) {
-    _setPlayhead(time);
+  void _seekTo(Duration time, {bool reveal = true}) {
+    _setPlayhead(time, reveal: reveal);
     // A clip whose file is gone has no frame to show; the player would
     // only wait for it to load.
     final clip = _list.locate(_playhead)?.clip;
@@ -330,12 +335,13 @@ final class EditorController {
     _ref.read(sequencePlaybackProvider).show(_list, _playhead);
   }
 
-  /// Sets the playhead, kept inside the sequence, and keeps it in view.
-  void _setPlayhead(Duration time) {
+  /// Sets the playhead, kept inside the sequence, and keeps it in view
+  /// unless told not to [reveal] it.
+  void _setPlayhead(Duration time, {bool reveal = true}) {
     final end = _list.duration;
     final kept = time.isNegative ? Duration.zero : (time > end ? end : time);
     _ref.read(playheadProvider.notifier).set(kept);
-    _ref.read(timelineZoomProvider.notifier).reveal(kept);
+    if (reveal) _ref.read(timelineZoomProvider.notifier).reveal(kept);
   }
 
   /// Start of the frame after the one under [time]: the next clip's first
