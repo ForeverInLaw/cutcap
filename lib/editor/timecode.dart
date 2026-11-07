@@ -24,23 +24,14 @@ final class FrameRate {
   int get hashCode => Object.hash(numerator, denominator);
 }
 
-/// Formats sequence times with the frame within the second as the last field.
-///
-/// [full] is the headline form (`00:01:12.08`), used for the playhead, the
-/// total and the ruler; [compact] is the short form for clip lengths and the
-/// status line (`01:12.08`, with hours only from an hour on).
+/// Formats sequence times as `HH:MM:SS.FF`, the frame within the second
+/// last. The one timecode form of the screen: headline, total, ruler, clip
+/// lengths and status line all use it.
 abstract final class Timecode {
   static String full(Duration time, FrameRate rate) {
     final parts = _Parts(time, rate);
     return '${_two(parts.hours)}:${_two(parts.minutes)}:'
         '${_two(parts.seconds)}.${_two(parts.frame)}';
-  }
-
-  static String compact(Duration time, FrameRate rate) {
-    final parts = _Parts(time, rate);
-    final rest =
-        '${_two(parts.minutes)}:${_two(parts.seconds)}.${_two(parts.frame)}';
-    return parts.hours > 0 ? '${parts.hours}:$rest' : rest;
   }
 
   static String _two(int value) => value.toString().padLeft(2, '0');

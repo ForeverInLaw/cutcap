@@ -56,20 +56,4 @@ void main() {
       );
     });
   });
-
-  group('Timecode.compact', () {
-    test('drops the hours under an hour', () {
-      expect(
-        Timecode.compact(const Duration(microseconds: 42433333), fps30),
-        '00:42.13',
-      );
-    });
-
-    test('keeps the hours from an hour on', () {
-      expect(
-        Timecode.compact(const Duration(hours: 1, seconds: 5), fps30),
-        '1:00:05.00',
-      );
-    });
-  });
 }

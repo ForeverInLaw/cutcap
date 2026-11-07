@@ -56,7 +56,7 @@ class ClipTile extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final tokens = CutcapTokens.of(context);
     final text = Theme.of(context).textTheme;
-    final length = Timecode.compact(clip.duration, rate);
+    final length = Timecode.full(clip.duration, rate);
     final motion = CutcapTokens.motion;
     final fade = motion.of(context, motion.short);
 

@@ -123,7 +123,7 @@ class _Summary extends StatelessWidget {
     final rate = state.frameRate.perSecond;
     final parts = [
       l10n.clipCount(state.clips.length),
-      Timecode.compact(state.duration, state.frameRate),
+      Timecode.full(state.duration, state.frameRate),
       if (size != null) '${size.width.round()}×${size.height.round()}',
       l10n.framesPerSecond(
         rate == rate.roundToDouble()
