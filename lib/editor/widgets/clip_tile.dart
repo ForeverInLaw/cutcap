@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/cutcap_tokens.dart';
 import '../editor_view_state.dart';
+import '../clip_label.dart';
 import '../timecode.dart';
 import 'focus_ring.dart';
 import 'timecode_text.dart';
@@ -20,9 +21,6 @@ final class TrackMetrics {
 
   static const _labelSize = 11.0;
   static const labelGap = 6.0;
-
-  /// Narrower tiles drop the name and show the length alone.
-  static const minNamedWidth = 70.0;
 
   final double _line;
   final double filmHeight;
@@ -62,7 +60,6 @@ class ClipTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final tokens = CutcapTokens.of(context);
-    final text = Theme.of(context).textTheme;
     final length = Timecode.full(clip.duration, rate);
     final motion = CutcapTokens.motion;
     final fade = motion.of(context, motion.short);
@@ -86,26 +83,11 @@ class ClipTile extends StatelessWidget {
             children: [
               SizedBox(
                 height: metrics.labelHeight,
-                child: metrics.twoLineLabels
-                    ? _StackedLabel(clip.name, length)
-                    : Text.rich(
-                        TextSpan(
-                          text: clip.name,
-                          children: [
-                            TextSpan(
-                              text: ' · $length',
-                              style: TextStyle(
-                                color: tokens.inkSecondary,
-                                fontWeight: FontWeight.w400,
-                                fontFeatures: TimecodeText.tabular,
-                              ),
-                            ),
-                          ],
-                        ),
-                        style: text.labelSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                child: _Label(
+                  name: clip.name,
+                  length: length,
+                  stacked: metrics.twoLineLabels,
+                ),
               ),
               const SizedBox(height: TrackMetrics.labelGap),
               SizedBox(
@@ -154,42 +136,92 @@ class ClipTile extends StatelessWidget {
   }
 }
 
-/// Name over length, each on its own line; tiles narrower than
-/// [TrackMetrics.minNamedWidth] keep the length line only.
-class _StackedLabel extends StatelessWidget {
-  const _StackedLabel(this.name, this.length);
+/// The clip's name and length: on one line joined by a dot (desktop) or
+/// stacked (phone, [stacked]). A part that does not fit is left out rather
+/// than cut: lengths show whole or not at all, names ellipsize only while
+/// they keep [ClipLabel.minNameChars] characters.
+class _Label extends StatelessWidget {
+  const _Label({
+    required this.name,
+    required this.length,
+    required this.stacked,
+  });
 
   final String name;
   final String length;
+  final bool stacked;
+
+  static const _separator = ' · ';
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.labelSmall;
     final tokens = CutcapTokens.of(context);
+    final nameStyle = Theme.of(context).textTheme.labelSmall!;
+    final lengthStyle = nameStyle.copyWith(
+      color: tokens.inkSecondary,
+      fontWeight: FontWeight.w400,
+      fontFeatures: TimecodeText.tabular,
+    );
+    final direction = Directionality.of(context);
+    final scaler = MediaQuery.textScalerOf(context);
+    double widthOf(String text, TextStyle style) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textDirection: direction,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      final width = painter.width;
+      painter.dispose();
+      return width;
+    }
+
+    final nameWidth = widthOf(name, nameStyle);
+    final nameMinWidth = name.length <= ClipLabel.minNameChars
+        ? nameWidth
+        : widthOf('${name.substring(0, ClipLabel.minNameChars)}…', nameStyle);
+    final lengthWidth = widthOf(length, lengthStyle);
+    final separatorWidth = widthOf(_separator, lengthStyle);
+
     return LayoutBuilder(
-      builder: (context, constraints) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          if (constraints.maxWidth >= TrackMetrics.minNamedWidth)
-            Text(
-              name,
-              style: style,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          Text(
-            length,
-            style: style?.copyWith(
-              color: tokens.inkSecondary,
-              fontWeight: FontWeight.w400,
-              fontFeatures: TimecodeText.tabular,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
+      builder: (context, constraints) {
+        final parts = ClipLabel.fit(
+          width: constraints.maxWidth,
+          nameWidth: nameWidth,
+          nameMinWidth: nameMinWidth,
+          lengthWidth: lengthWidth,
+          separatorWidth: separatorWidth,
+          stacked: stacked,
+        );
+        final nameText = Text(
+          name,
+          style: nameStyle,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.ellipsis,
+        );
+        final lengthText = Text(
+          length,
+          style: lengthStyle,
+          maxLines: 1,
+          softWrap: false,
+        );
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [if (parts.name) nameText, if (parts.length) lengthText],
+          );
+        }
+        return Row(
+          children: [
+            if (parts.name) Flexible(child: nameText),
+            if (parts.name && parts.length)
+              Text(_separator, style: lengthStyle),
+            if (parts.length) lengthText,
+          ],
+        );
+      },
     );
   }
 }
