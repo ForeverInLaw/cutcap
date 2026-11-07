@@ -189,14 +189,26 @@ jobs:
       - run: flutter pub get --enforce-lockfile
 
       # One debug key for every run, so a new debug APK installs over the
-      # last one (adb install -r) instead of needing an uninstall. Created
-      # by the first build, then restored; debug keys are not secret.
+      # last one (adb install -r) instead of needing an uninstall. Made on
+      # the first run, then restored; debug keys are not secret. The
+      # passwords and alias are the SDK debug key's defaults, which the
+      # debug signing config keeps (android/app/build.gradle.kts).
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: debug-key
         with:
-          path: ~/.android/debug.keystore
+          path: ${{ runner.temp }}/cutcap-debug.keystore
           key: android-debug-keystore-v1
 
+      - if: steps.debug-key.outputs.cache-hit != 'true'
+        run: >-
+          keytool -genkeypair -keystore "$RUNNER_TEMP/cutcap-debug.keystore"
+          -storepass android -alias androiddebugkey -keypass android
+          -keyalg RSA -keysize 2048 -validity 10000
+          -dname "CN=Android Debug,O=Android,C=US"
+
       - run: flutter build apk --debug --target-platform android-arm64
+        env:
+          CUTCAP_DEBUG_KEYSTORE: ${{ runner.temp }}/cutcap-debug.keystore
 
       # Kotlin unit tests; the APK build above wrote local.properties and
       # the Gradle wrapper.
