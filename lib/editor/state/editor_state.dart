@@ -57,6 +57,9 @@ final sessionStoreProvider = Provider<SessionStore>(
   ),
 );
 
+/// The files the app was started with ("Open with"); main overrides it.
+final launchFilesProvider = Provider<List<String>>((ref) => const []);
+
 /// Whether a source file is still there (on Android, still readable by its
 /// URI); tests override it.
 final sourceExistsProvider = Provider<Future<bool> Function(String path)>(

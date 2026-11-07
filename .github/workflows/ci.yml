@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main, integration/v1]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -14,8 +15,8 @@ permissions:
   contents: read
 
 jobs:
-  # Cheap checks on every push and PR. Platform build jobs (Windows, Android)
-  # are added as separate jobs that `needs: check`.
+  # Cheap checks on every push and PR. Platform builds `needs: check` and
+  # run on main, on v* tags and on PRs that touch their paths (`changes`).
   check:
     name: Format, analyze, test
     runs-on: ubuntu-latest
@@ -46,3 +47,131 @@ jobs:
           ffmpeg -hide_banner -version | head -n 1
 
       - run: flutter test
+
+  # Which platform builds a PR needs; pushes and tags decide by ref instead.
+  # Add a filter here for every platform job.
+  changes:
+    name: Changed paths
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      windows: ${{ steps.filter.outputs.windows }}
+    steps:
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          filters: |
+            windows:
+              - 'lib/**'
+              - 'windows/**'
+              - 'pubspec.*'
+              - 'installer/**'
+              - 'tool/**'
+              - '.github/workflows/ci.yml'
+
+  windows:
+    name: Windows build and installer
+    needs: [check, changes]
+    # `changes` is skipped outside PRs, hence !cancelled() and the explicit
+    # check result.
+    if: >-
+      !cancelled() && needs.check.result == 'success' && (
+        github.ref == 'refs/heads/main' ||
+        startsWith(github.ref, 'refs/tags/v') ||
+        github.event_name == 'workflow_dispatch' ||
+        needs.changes.outputs.windows == 'true'
+      )
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: pubspec.yaml
+          cache: true
+
+      - run: flutter pub get --enforce-lockfile
+
+      # Cache keys from the version and sha256 pinned in the fetch scripts.
+      - name: Read pinned tool versions
+        id: pins
+        shell: pwsh
+        run: |
+          function Pin([string] $Script, [string] $Name) {
+            (Select-String -Path $Script -Pattern ('^\$' + $Name + " = '(.+)'")).Matches[0].Groups[1].Value
+          }
+          foreach ($tool in 'ffmpeg', 'inno_setup') {
+            $script = "tool/fetch_$tool.ps1"
+            "$tool=$tool-$(Pin $script 'Version')-$(Pin $script 'Sha256')" >> $env:GITHUB_OUTPUT
+          }
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: ffmpeg
+        with:
+          path: build/ffmpeg
+          key: ${{ steps.pins.outputs.ffmpeg }}
+
+      - if: steps.ffmpeg.outputs.cache-hit != 'true'
+        run: ./tool/fetch_ffmpeg.ps1 -Destination build/ffmpeg
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: inno
+        with:
+          path: build/innosetup
+          key: ${{ steps.pins.outputs.inno_setup }}
+
+      - if: steps.inno.outputs.cache-hit != 'true'
+        run: ./tool/fetch_inno_setup.ps1 -Destination build/innosetup
+
+      - run: flutter build windows --release
+
+      - name: Compile installer
+        id: installer
+        run: |
+          $installer = ./tool/build_installer.ps1 -Iscc build/innosetup/ISCC.exe
+          "path=$installer" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cutcap-windows
+          path: ${{ steps.installer.outputs.path }}
+          retention-days: 7
+          if-no-files-found: error
+
+  # A v* tag publishes the installer. The tag must match pubspec.yaml's
+  # version. CUTCAP-10 adds the Android job to `needs` and its APK here.
+  release:
+    name: GitHub Release
+    needs: [windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cutcap-windows
+          path: dist
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          installer="dist/cutcap-setup-${TAG#v}.exe"
+          if [ ! -f "$installer" ]; then
+            echo "::error::Tag $TAG does not match pubspec.yaml's version (built: $(ls dist))"
+            exit 1
+          fi
+          gh release create "$TAG" "$installer" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "cutcap ${TAG#v}" \
+            --generate-notes \
+            --verify-tag

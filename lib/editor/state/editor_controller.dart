@@ -79,8 +79,15 @@ final class EditorController {
 
   // Session ----------------------------------------------------------------
 
+  /// Starts the editor: restores the last edit, then appends [files], the
+  /// ones the app was opened with ("Open with"). Called once at launch.
+  Future<void> launch(List<String> files) async {
+    await restoreSession();
+    await addFiles(files);
+  }
+
   /// Brings back the edit saved by the last run, flags sources whose file
-  /// is gone and from then on autosaves every edit. Called once at launch.
+  /// is gone and from then on autosaves every edit.
   Future<void> restoreSession() async {
     final saved = await _ref.read(sessionStoreProvider).load();
     _session.restore(saved);
