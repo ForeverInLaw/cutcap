@@ -19,6 +19,13 @@ final class TimelineWindow {
         start.inMicroseconds +
         (span.inMicroseconds * fraction.clamp(0.0, 1.0)).round(),
   );
+
+  @override
+  bool operator ==(Object other) =>
+      other is TimelineWindow && other.start == start && other.end == end;
+
+  @override
+  int get hashCode => Object.hash(start, end);
 }
 
 /// One mark on the ruler.
@@ -27,9 +34,13 @@ typedef RulerTick = ({Duration time, bool major, bool labelled});
 /// Picks tick steps for the ruler so marks stay legible at any zoom: whole
 /// frames when zoomed in, round seconds and minutes when zoomed out.
 abstract final class Ruler {
-  /// Minimum distance between labelled (major) ticks; also the room kept
-  /// free at both ends for the guide words.
+  /// Minimum distance between labelled (major) ticks.
   static const double majorSpacing = 120;
+
+  /// Room one timecode label takes, gap included. Labels start at their
+  /// tick and run right, so they keep this much clear of the opening guide
+  /// word and twice this of the closing one.
+  static const double labelRoom = 90;
 
   /// Minimum distance between any two ticks.
   static const double minorSpacing = 8;
@@ -71,7 +82,7 @@ abstract final class Ruler {
       ticks.add((
         time: time,
         major: isMajor,
-        labelled: isMajor && x >= majorSpacing && x <= width - majorSpacing,
+        labelled: isMajor && x >= labelRoom && x <= width - 2 * labelRoom,
       ));
     }
     return ticks;

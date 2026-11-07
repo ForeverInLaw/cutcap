@@ -34,6 +34,14 @@ void main() {
       ]);
     });
 
+    test('drops a label that would run into the closing guide word', () {
+      // On a phone the 2:00 tick lands 167 px into a 306 px ruler; its label
+      // would reach the guide word naming 3:40 at the right edge.
+      final ticks = Ruler.ticks(whole, width: 306, rate: fps30);
+
+      expect(ticks.where((tick) => tick.labelled), isEmpty);
+    });
+
     test('fills the gaps with the finest minor step that stays legible', () {
       // 6.25 px per second: 1 s would crowd to 6 px, 2 s gives 12.5 px.
       final ticks = Ruler.ticks(whole, width: 1376, rate: fps30);
@@ -63,7 +71,7 @@ void main() {
           Duration(microseconds: 666666),
           Duration(seconds: 1),
           Duration(microseconds: 1333333),
-          Duration(microseconds: 1666666),
+          // 1.67 s sits within two label widths of the closing guide word.
         ],
       );
     });
