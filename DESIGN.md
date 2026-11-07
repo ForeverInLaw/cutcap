@@ -240,7 +240,7 @@ The breakpoint is 720 px of window width: below it the phone layout, at or above
 
 **Desktop.** A 56 px black bar, then the black preview field taking up to 58 % of the window height (bar included); the workspace below takes the height its content needs and the preview gives way. The workspace has 32 px side margins and 24 px top padding. Its headline row sits on a 12-column grid with 24 px gutters: the timecode over six columns, the transport (frame back, play, frame forward) from column seven at two columns and never under 176 px, the edit tools (Split, Delete, Undo, Redo) flush right. Transport and tools stand on the timecode's baseline. Split and Delete spell out their labels only when the tool column is wide enough; otherwise they drop to icons. Below: the timeline (hairline top rule, ruler, 8 px gap, track), 16 px, then the status band (64 px minimum, hairline top rule).
 
-**Phone.** A 64 px black bar (wordmark, Undo, Redo, Export), the preview, then the workspace with 16 px insets: headline timecode, 12 px, ruler (stretched to 56 px for scrubbing), track, status. A bottom action bar under a hairline rule carries frame back, play, frame forward on the left and Split, Delete on the right, 8 px apart. The track takes its height first (film may grow up to 40 px when there is room); the preview fills the rest and never drops below 120 px; when it would, the workspace scrolls instead.
+**Phone.** A 64 px black bar (wordmark, Undo, Redo, Export, an overflow holding Clear track), the preview, then the workspace with 16 px insets: headline timecode, 12 px, ruler (stretched to 56 px for scrubbing), track, status. A bottom action bar under a hairline rule carries frame back, play, frame forward on the left and Split, Delete on the right, 8 px apart. The track takes its height first (film may grow up to 40 px when there is room); the preview fills the rest and never drops below 120 px; when it would, the workspace scrolls instead.
 
 **Track.** Clips sit back to back by time across the visible window with 4 px gutters; film height 110 px by default. An add tile (56 px wide desktop, 48 px phone) is fixed at the track's end. Label rows grow with the system text size.
 
@@ -273,16 +273,24 @@ Controls are standard Material 3 buttons restyled flat and square; the signature
 - **Tooltips:** every control has one, ink fill with graphite 12 px text after 500 ms; on desktop it names the shortcut (S, Delete, Space, arrows, Ctrl+Z, Ctrl+Shift+Z). The shortcut never enters the accessible name.
 
 ### Top Bar
-Paper on black. Lowercase "cutcap" wordmark left, controls right. Desktop 56 px with 32 px side padding and 40 px word buttons (Add video plain, Export filled); phone 64 px so its 48 dp targets clear the edges.
+Paper on black. Lowercase "cutcap" wordmark left, controls right. Desktop 56 px with 32 px side padding and 40 px word buttons (Clear track and Add video plain, Export filled); phone 64 px so its 48 dp targets clear the edges, with a plain overflow icon button after Export whose menu holds Clear track. When large text crowds the phone bar, the wordmark scales down whole.
+
+### Menu
+A graphite field cut out by a 1 px ink outline with 2 px corners, no elevation; 48 dp rows of 14 px medium ink labels with 16 px side padding. Used only for the phone overflow.
 
 ### Headline Timecode (signature)
 The playhead time at 80 px (44 px phone), weight 700, tabular, with "/ total" on the same baseline. A 2 px red underline spans the time's width just under it; when the playhead is to the right of the time, a 1 px red line carries the underline across to the playhead rule, so the headline and the rule read as one stroke wherever the playhead stands.
 
 ### Ruler (signature)
-Ink ticks along the bottom (major 14 px, minor 5 px, 1 px). Guide words in 12 px bold ink name the first and last time in view at the two ends; labelled major ticks between them are 12 px regular ink-secondary. The 10 px red square playhead head sits at the top. Pressing or dragging seeks immediately (column-resize cursor) and never waits for the frame; assistive tech gets a slider stepped one frame at a time.
+Ink ticks along the bottom (major 14 px, minor 5 px, 1 px). Guide words in 12 px bold ink name the first and last time in view at the two ends; labelled major ticks between them are 12 px regular ink-secondary. The 10 px red square playhead head sits at the top. Pressing or dragging seeks immediately (column-resize cursor) and never waits for the frame; a finger snaps to cuts from 16 px, a mouse from 8 px. Assistive tech gets a slider stepped one frame at a time.
 
 ### Clip Tile
 Name (11 px medium ink) and length (11 px regular ink-secondary, tabular) on one line joined by " · " on desktop, stacked on the phone; parts that do not fit are dropped whole rather than cut, and names ellipsize only while they keep a minimum number of characters. Beneath, 6 px down, the filmstrip: evenly sampled thumbnails 1 px apart, frame-grey placeholders until they load. The tile is square-cornered and has no outline at rest.
+
+### Track Gestures
+- **Mouse:** a drag along a clip moves it at once; a drag from within 8 px of an edge (resize cursor) trims it; Ctrl+wheel zooms around the cursor, the wheel scrolls.
+- **Touch:** one finger drags the zoomed track and a flick glides on; two fingers pinch to zoom around the point between them (a second finger always makes the gesture a pinch); a tap selects; a long press lifts the clip (it is selected, the device gives haptic feedback) and it then follows the finger; only the selected clip trims, from invisible 48 dp targets centred on its edges that reach over the gutter and the neighbour.
+- **Either:** a drag held near either end of the zoomed track scrolls it, faster towards the end, and the track stays where the drag ends. Clips make way with the 200 ms reorder slide.
 
 ### Add Tile
 An outlined icon button with a plus, as tall as the film, fixed at the end of the track.
