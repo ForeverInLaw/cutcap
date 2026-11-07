@@ -1,6 +1,7 @@
 // Seam 2 of the spec: real exports with the ffmpeg on PATH, checked with
 // ffprobe. Fixtures are generated with lavfi so the commands must also work
 // with the older distro ffmpeg on Ubuntu CI.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -157,6 +158,39 @@ void main() {
       expect(events.last, isA<ExportCancelled>());
       expect(File(path).existsSync(), isFalse);
       expect(File('$path.part').existsSync(), isFalse);
+    },
+    tags: _tags,
+    skip: skip,
+  );
+
+  test(
+    'dropping the subscription stops the export like cancel',
+    () async {
+      final path = output('dropped.mp4');
+      final engine = FfmpegExportEngine(ffmpegPath: 'ffmpeg');
+      final job = ExportJob(
+        editList: editOf([
+          for (var i = 0; i < 5; i++) (fixtures.hd30, 0, 4000),
+        ]),
+        outputPath: path,
+      );
+
+      final progressed = Completer<void>();
+      final subscription = engine.export(job).listen((event) {
+        if (event is ExportProgress && !progressed.isCompleted) {
+          progressed.complete();
+        }
+      });
+      await progressed.future;
+      await subscription.cancel();
+
+      expect(File(path).existsSync(), isFalse);
+      expect(File('$path.part').existsSync(), isFalse);
+      // The engine is free for the next export.
+      expect(
+        await engine.export(job).firstWhere((e) => e is ExportProgress),
+        isA<ExportProgress>(),
+      );
     },
     tags: _tags,
     skip: skip,

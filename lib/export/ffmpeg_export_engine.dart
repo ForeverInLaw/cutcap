@@ -82,7 +82,12 @@ final class FfmpegExportEngine implements ExportEngine {
     } on FileSystemException catch (error) {
       yield ExportFailed('Could not write ${job.outputPath}: ${error.message}');
     } finally {
-      run.process?.kill();
+      // Also reached when the listener cancels mid-export. Wait for ffmpeg
+      // to exit so Windows releases the partial file before it is deleted.
+      if (run.process case final process?) {
+        process.kill();
+        await process.exitCode;
+      }
       if (!succeeded && partial.existsSync()) await partial.delete();
       _running = null;
     }
