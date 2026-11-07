@@ -123,12 +123,12 @@ int _samplesIn(int frames, FrameRate rate) => _roundedDivision(
 /// `a / b` rounded half up, for non-negative `a` and positive `b`.
 int _roundedDivision(int a, int b) => (2 * a + b) ~/ (2 * b);
 
-/// The frame size of [source] as shown, after its rotation.
+/// The frame size of [source] as shown, after its rotation, with odd sides
+/// rounded down to even.
 Resolution _uprightSize(Source source) {
   final (:width, :height) = source.resolution;
-  return source.rotation % 180 == 0
-      ? (width: width, height: height)
-      : (width: height, height: width);
+  final (w, h) = source.rotation % 180 == 0 ? (width, height) : (height, width);
+  return (width: w & ~1, height: h & ~1);
 }
 
 /// The rate to export a sequence starting with [source] at: its nominal

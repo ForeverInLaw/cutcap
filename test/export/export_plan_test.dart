@@ -82,6 +82,14 @@ void main() {
       expect(planFor(180).size, (width: 1920, height: 1080));
     });
 
+    test('rounds an odd size down to even, as H.264 in 4:2:0 needs', () {
+      final plan = ExportPlan.of(
+        edit([(source('odd', resolution: (width: 853, height: 481)), 0, 1000)]),
+      )!;
+
+      expect(plan.size, (width: 852, height: 480));
+    });
+
     FrameRate rateFor(FrameRate nominal, FrameRate average) => ExportPlan.of(
       edit([(source('a', rate: nominal, averageRate: average), 0, 1000)]),
     )!.frameRate;
