@@ -153,8 +153,8 @@ void main() {
         fromScale: fromScale,
         toScale: toScale,
       );
-      editor.scrollTimeline(step.scroll);
       editor.zoomTimeline(step.factor, step.anchor, _trackWidth);
+      editor.scrollTimeline(step.scroll);
     }
 
     test('spreading two fingers zooms in around them', () {
@@ -173,6 +173,14 @@ void main() {
         ),
       );
     });
+
+    test(
+      'a pinch from the whole sequence keeps the time under the fingers',
+      () {
+        pinch(fromX: 600, toX: 500, toScale: 2);
+        expect(window().timeAt(500 / _trackWidth), _ms(3500));
+      },
+    );
 
     test('the time between the fingers stays under them as they move', () {
       zoom(0.5);

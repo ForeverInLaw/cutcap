@@ -3,11 +3,13 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 
 /// One update of a touch pan or pinch on the track, as the two intents the
-/// track sends: scroll by [scroll], then zoom by [factor] around [anchor].
+/// track sends: zoom by [factor] around [anchor], then scroll by [scroll].
 ///
-/// Scrolling first brings the time that was under the fingers to where they
-/// are now; zooming around that point then keeps it there, so the track
-/// follows the fingers the way a map does.
+/// Zooming around where the fingers are now and then scrolling by how far
+/// they moved (at the span before the zoom) brings the time that was under
+/// them back under them, so the track follows the fingers the way a map
+/// does. Zooming first also lets a pinch that starts on the whole sequence,
+/// which cannot scroll yet, keep that time in place.
 @immutable
 final class TrackPinch {
   const TrackPinch._(this.scroll, this.factor, this.anchor);

@@ -117,11 +117,11 @@ class _TrackNavigationState extends State<TrackNavigation>
     _lastX = details.localFocalPoint.dx;
     _lastScale = details.scale;
     final actions = widget.actions;
-    if (step.scroll != Duration.zero) actions.onScrollTimeline(step.scroll);
     if (step.factor != 1) {
       actions.onZoom(step.factor, step.anchor, _width);
       _unbuiltZoom *= step.factor;
     }
+    if (step.scroll != Duration.zero) actions.onScrollTimeline(step.scroll);
   }
 
   /// A one-finger drag that ends in a flick glides on, slowing the way
