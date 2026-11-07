@@ -25,6 +25,15 @@ final class FrameRate {
   int frameAt(Duration time) =>
       ((time.inMicroseconds + 1) * numerator - 1) ~/ _scale;
 
+  /// The frame start closest to [time], which must not be negative; a time
+  /// halfway between two starts goes to the earlier one.
+  Duration nearestFrameStart(Duration time) {
+    final frame = frameAt(time);
+    final before = frameStart(frame);
+    final after = frameStart(frame + 1);
+    return time - before <= after - time ? before : after;
+  }
+
   /// The time to seek a player or `ffmpeg -ss` to so that it shows the frame
   /// under [time] (ADR 0002): that frame's start minus half a frame, never
   /// negative. Decoders show the first frame whose pts is at or after the
