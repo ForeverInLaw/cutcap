@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../../domain/editor_session.dart';
 import '../../media/media_probe.dart';
 import 'editor_state.dart';
+import 'timeline_zoom.dart';
 
 final editorControllerProvider = Provider<EditorController>(
   EditorController.new,
@@ -247,6 +248,30 @@ final class EditorController {
     _seekTo(time);
   }
 
+  /// Seeks to [time] under the pointer on the ruler, snapping to a cut (or
+  /// either end of the sequence) within [snapTolerance] of it.
+  void scrub(Duration time, Duration snapTolerance) {
+    var cut = Duration.zero;
+    var nearest = cut;
+    for (final clip in _list.clips) {
+      cut += clip.duration;
+      if ((cut - time).abs() < (nearest - time).abs()) nearest = cut;
+    }
+    seek((nearest - time).abs() <= snapTolerance ? nearest : time);
+  }
+
+  // Timeline ---------------------------------------------------------------
+
+  /// Zooms the track by [factor] (below 1 zooms in) around [anchor], the
+  /// fraction across the track ([trackWidth] px) under the cursor.
+  void zoomTimeline(double factor, double anchor, double trackWidth) => _ref
+      .read(timelineZoomProvider.notifier)
+      .zoom(factor, anchor: anchor, trackWidth: trackWidth);
+
+  /// Scrolls the zoomed track [delta] along the sequence.
+  void scrollTimeline(Duration delta) =>
+      _ref.read(timelineZoomProvider.notifier).scroll(delta);
+
   /// Steps the playhead [frames] frames (negative: back), on the frame grid
   /// of the clip under it, across clip boundaries.
   void stepFrame(int frames) {
@@ -288,11 +313,12 @@ final class EditorController {
     _ref.read(sequencePlaybackProvider).show(_list, _playhead);
   }
 
+  /// Sets the playhead, kept inside the sequence, and keeps it in view.
   void _setPlayhead(Duration time) {
     final end = _list.duration;
-    _ref
-        .read(playheadProvider.notifier)
-        .set(time.isNegative ? Duration.zero : (time > end ? end : time));
+    final kept = time.isNegative ? Duration.zero : (time > end ? end : time);
+    _ref.read(playheadProvider.notifier).set(kept);
+    _ref.read(timelineZoomProvider.notifier).reveal(kept);
   }
 
   /// Start of the frame after the one under [time]: the next clip's first

@@ -13,6 +13,7 @@ import '../../player/media_kit_preview_player.dart';
 import '../../player/preview_player.dart';
 import '../../player/sequence_playback.dart';
 import '../../session/session_store.dart';
+import 'timeline_zoom.dart';
 
 /// The edit and its undo history.
 final sessionProvider = NotifierProvider<SessionNotifier, EditorSession>(
@@ -102,7 +103,10 @@ Future<List<String>> _pickVideos() async {
 final sequencePlaybackProvider = Provider<SequencePlayback>((ref) {
   final playback = SequencePlayback(
     ref.watch(previewPlayerProvider),
-    onPosition: (time) => ref.read(playheadProvider.notifier).set(time),
+    onPosition: (time) {
+      ref.read(playheadProvider.notifier).set(time);
+      ref.read(timelineZoomProvider.notifier).reveal(time);
+    },
     onEnded: () => ref.read(transportProvider.notifier).set(Transport.paused),
   );
   ref.onDispose(playback.dispose);

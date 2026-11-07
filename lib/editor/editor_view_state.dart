@@ -158,7 +158,9 @@ final class EditorActions {
     required this.onUndo,
     required this.onRedo,
     required this.onSelectClip,
-    required this.onSeek,
+    required this.onScrub,
+    required this.onZoom,
+    required this.onScrollTimeline,
     required this.onClear,
     required this.onTrimStart,
     required this.onTrimUpdate,
@@ -185,8 +187,17 @@ final class EditorActions {
   final VoidCallback onRedo;
   final ValueChanged<ClipId> onSelectClip;
 
-  /// Called on every scrub update, latest wins; never awaits the frame.
-  final ValueChanged<Duration> onSeek;
+  /// Called on every scrub update with the time under the pointer and how
+  /// far from a cut the playhead still snaps to it; latest wins, never
+  /// awaits the frame.
+  final void Function(Duration time, Duration snapTolerance) onScrub;
+
+  /// Ctrl+wheel over the track: zoom by the factor (below 1 zooms in)
+  /// around the fraction across the track (px wide) under the cursor.
+  final void Function(double factor, double anchor, double trackWidth) onZoom;
+
+  /// The wheel over the zoomed track: scroll it by this much time.
+  final ValueChanged<Duration> onScrollTimeline;
   final VoidCallback onClear;
 
   /// A drag on a clip's edge: start, then the edge's offset in time from
