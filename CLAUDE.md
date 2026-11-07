@@ -18,6 +18,8 @@ Flutter 3.44.8 exactly (pinned in `pubspec.yaml` under `environment.flutter`; CI
 | Analyze (CI) | `flutter analyze` |
 | Test one file | `flutter test test/app_test.dart` |
 | Test all (CI) | `flutter test` |
+| Export integration tests only (need ffmpeg + ffprobe on PATH, skipped otherwise) | `flutter test --tags ffmpeg` |
+| Fetch the pinned Windows FFmpeg (sha256-verified) | `pwsh tool/fetch_ffmpeg.ps1 -Destination <dir>` |
 | Run on Windows | `flutter run -d windows` |
 | Build Windows | `flutter build windows` (`--debug` for a quick check) |
 | Build Android APK | `flutter build apk` (needs the Android SDK, which the dev box does not have) |
