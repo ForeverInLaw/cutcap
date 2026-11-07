@@ -86,6 +86,11 @@ class _DesktopLayout extends StatelessWidget {
               ),
             ),
           ),
+          if (state.showsStatusPanel)
+            Padding(
+              padding: EdgeInsets.fromLTRB(space.xxl, 0, space.xxl, space.l),
+              child: StatusArea(state: state, actions: actions, compact: false),
+            ),
         ],
       );
     }
@@ -300,6 +305,11 @@ class _PhoneLayout extends StatelessWidget {
               ),
             ),
           ),
+          if (state.showsStatusPanel)
+            Padding(
+              padding: inset.copyWith(bottom: space.l),
+              child: StatusArea(state: state, actions: actions, compact: true),
+            ),
         ],
       );
     }
@@ -340,7 +350,7 @@ class _PhoneLayout extends StatelessWidget {
       maxWidth: width - 2 * space.l,
     );
     final scaler = MediaQuery.textScalerOf(context);
-    final status = state.export is ExportIdle
+    final status = !state.showsStatusPanel
         ? 0.0
         : space.l + 3 * space.m + 48 + 2 * scaler.scale(14 * 1.3);
     double workspaceHeight(double film) =>
@@ -378,7 +388,7 @@ class _PhoneLayout extends StatelessWidget {
               timeWidth: geometry.timeWidth,
             ),
           ),
-          if (state.export is! ExportIdle) SizedBox(height: space.l),
+          if (state.showsStatusPanel) SizedBox(height: space.l),
           StatusArea(state: state, actions: actions, compact: true),
         ],
       ),

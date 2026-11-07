@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-import '../domain/frame_rate.dart';
+import '../domain/editor_session.dart';
 import 'ruler.dart';
 
 /// What the editor screen shows, as plain immutable data. The screen renders
@@ -19,9 +19,12 @@ final class EditorViewState {
     this.canDelete = false,
     this.canUndo = false,
     this.canRedo = false,
+    this.canClear = false,
     this.canExport = false,
     this.export = const ExportIdle(),
     this.acceptsFileDrop = false,
+    this.unreadableFiles = const [],
+    this.isTrimming = false,
   });
 
   /// The track, in sequence order, back to back.
@@ -44,13 +47,26 @@ final class EditorViewState {
   final bool canDelete;
   final bool canUndo;
   final bool canRedo;
+  final bool canClear;
   final bool canExport;
   final ExportStatus export;
 
   /// Whether files can be dropped onto the window (desktop).
   final bool acceptsFileDrop;
 
+  /// Names of picked files that could not be opened; shown until dismissed.
+  final List<String> unreadableFiles;
+
+  /// A clip edge is being dragged: the track follows the pointer without
+  /// animating.
+  final bool isTrimming;
+
   bool get isEmpty => clips.isEmpty;
+
+  /// Whether the status band shows a panel (export or a problem) rather
+  /// than the resting summary.
+  bool get showsStatusPanel =>
+      export is! ExportIdle || unreadableFiles.isNotEmpty;
 
   Duration get duration =>
       clips.fold(Duration.zero, (total, clip) => total + clip.duration);
@@ -73,7 +89,7 @@ final class ClipView {
     this.isMissing = false,
   });
 
-  final String id;
+  final ClipId id;
 
   /// Source file name.
   final String name;
@@ -143,6 +159,14 @@ final class EditorActions {
     required this.onRedo,
     required this.onSelectClip,
     required this.onSeek,
+    required this.onClear,
+    required this.onTrimStart,
+    required this.onTrimUpdate,
+    required this.onTrimEnd,
+    required this.onReorderStart,
+    required this.onReorderUpdate,
+    required this.onReorderEnd,
+    required this.onDismissUnreadable,
     required this.onCancelExport,
     required this.onOpenExport,
     required this.onShareExport,
@@ -159,10 +183,24 @@ final class EditorActions {
   final VoidCallback onDelete;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
-  final ValueChanged<String> onSelectClip;
+  final ValueChanged<ClipId> onSelectClip;
 
   /// Called on every scrub update, latest wins; never awaits the frame.
   final ValueChanged<Duration> onSeek;
+  final VoidCallback onClear;
+
+  /// A drag on a clip's edge: start, then the edge's offset in time from
+  /// where the drag started, then the end.
+  final void Function(ClipId id, ClipEdge edge) onTrimStart;
+  final ValueChanged<Duration> onTrimUpdate;
+  final VoidCallback onTrimEnd;
+
+  /// A drag along a clip: start, then the sequence time under the
+  /// pointer, then the end.
+  final ValueChanged<ClipId> onReorderStart;
+  final ValueChanged<Duration> onReorderUpdate;
+  final VoidCallback onReorderEnd;
+  final VoidCallback onDismissUnreadable;
   final VoidCallback onCancelExport;
   final VoidCallback onOpenExport;
   final VoidCallback onShareExport;

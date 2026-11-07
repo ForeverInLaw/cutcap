@@ -100,6 +100,15 @@ final class EditorControls {
     size: inBar ? _barSize : _size,
   );
 
+  /// In the desktop top bar: words only, beside Add video.
+  Widget clear() => ControlButton(
+    label: _l10n.clearTrack,
+    onPressed: _when(state.canClear, actions.onClear),
+    kind: ControlKind.plain,
+    showLabel: true,
+    size: _barSize,
+  );
+
   Widget export() => ControlButton(
     label: _l10n.export,
     onPressed: _when(state.canExport, actions.onExport),

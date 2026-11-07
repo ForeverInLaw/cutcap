@@ -9,7 +9,8 @@ import 'timecode_text.dart';
 
 /// The line under the track. At rest it summarises the sequence (desktop
 /// only); during and after an export it becomes the export panel, so the
-/// edit above stays visible and readable throughout.
+/// edit above stays visible and readable throughout. Files that could not
+/// be added are reported here the same way, until dismissed.
 class StatusArea extends StatelessWidget {
   const StatusArea({
     required this.state,
@@ -35,10 +36,26 @@ class StatusArea extends StatelessWidget {
       size: size,
     );
 
+    final unreadable = state.unreadableFiles;
     final Widget content = switch (state.export) {
+      ExportIdle() when unreadable.isNotEmpty => _StatusPanel(
+        key: const ValueKey(#unreadable),
+        compact: compact,
+        icon: Icons.error_outline_sharp,
+        message: l10n.couldNotOpen(unreadable.length, unreadable.join(', ')),
+        buttons: [
+          ControlButton(
+            icon: Icons.close_sharp,
+            label: l10n.dismiss,
+            onPressed: actions.onDismissUnreadable,
+            kind: ControlKind.plain,
+            size: size,
+          ),
+        ],
+      ),
       ExportIdle() when compact => const SizedBox.shrink(),
       ExportIdle() => _Summary(state),
-      ExportRunning(:final progress) => _ExportPanel(
+      ExportRunning(:final progress) => _StatusPanel(
         key: const ValueKey(ExportRunning),
         compact: compact,
         message: l10n.exportProgress((progress * 100).floor()),
@@ -52,7 +69,7 @@ class StatusArea extends StatelessWidget {
           ),
         ],
       ),
-      ExportDone(:final fileName, :final canShare) => _ExportPanel(
+      ExportDone(:final fileName, :final canShare) => _StatusPanel(
         key: const ValueKey(ExportDone),
         compact: compact,
         icon: Icons.check_sharp,
@@ -77,7 +94,7 @@ class StatusArea extends StatelessWidget {
           close,
         ],
       ),
-      ExportFailed(:final reason) => _ExportPanel(
+      ExportFailed(:final reason) => _StatusPanel(
         key: const ValueKey(ExportFailed),
         compact: compact,
         icon: Icons.error_outline_sharp,
@@ -132,7 +149,7 @@ class _Summary extends StatelessWidget {
       ),
     ];
     return _Ruled(
-      minHeight: _ExportPanel.desktopHeight,
+      minHeight: _StatusPanel.desktopHeight,
       child: Align(
         alignment: AlignmentDirectional.centerStart,
         child: TimecodeText(
@@ -146,14 +163,14 @@ class _Summary extends StatelessWidget {
   }
 }
 
-/// Export progress or outcome: an icon and message in words, an optional
-/// progress line, and the actions. One row on desktop; stacked on the
+/// Export progress or outcome, or a problem with added files: an icon and
+/// message in words, an optional progress line, and the actions. One row on desktop; stacked on the
 /// phone so long messages wrap instead of squeezing the buttons.
-class _ExportPanel extends StatelessWidget {
+class _StatusPanel extends StatelessWidget {
   /// Desktop band height, shared with the summary so the band never jumps.
   static const desktopHeight = 64.0;
 
-  const _ExportPanel({
+  const _StatusPanel({
     required this.compact,
     required this.message,
     required this.buttons,

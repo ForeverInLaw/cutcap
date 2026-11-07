@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+import '../../domain/edit_list.dart' show ClipEdge, ClipId;
 import '../../l10n/app_localizations.dart';
 import '../../theme/cutcap_tokens.dart';
 import '../editor_view_state.dart';
@@ -28,8 +30,10 @@ final class PlayheadTie {
 ///
 /// Clips are laid out by time across the visible window, back to back with
 /// 4 px gutters. Pressing or dragging on the ruler seeks; every update is
-/// reported at once and nothing waits for the frame. [compact] (phone)
-/// stacks clip names over lengths and stretches the ruler to a touch target.
+/// reported at once and nothing waits for the frame. Dragging a clip moves
+/// it along the track while its neighbours slide out of the way; dragging a
+/// clip's edge trims it. [compact] (phone) stacks clip names over lengths
+/// and stretches the ruler to a touch target.
 class TimelineView extends StatelessWidget {
   const TimelineView({
     required this.state,
@@ -88,6 +92,19 @@ class TimelineView extends StatelessWidget {
       builder: (context, constraints) {
         final timeWidth = constraints.maxWidth - addWidth - space.xs;
         double xOf(Duration time) => window.fractionOf(time) * timeWidth;
+        Duration timeAt(Offset global) {
+          final box = context.findRenderObject()! as RenderBox;
+          return window.timeAt(box.globalToLocal(global).dx / timeWidth);
+        }
+
+        final motion = CutcapTokens.motion;
+        final layout = _ClipLayout(
+          timeAt: timeAt,
+          microsecondsPerPixel: window.span.inMicroseconds / timeWidth,
+          slide: state.isTrimming
+              ? Duration.zero
+              : motion.of(context, motion.standard),
+        );
         final playheadX = xOf(state.position);
         final showPlayhead = playheadX >= 0 && playheadX <= timeWidth;
         Widget ruler(RulerLayer layer) => RulerView(
@@ -129,6 +146,7 @@ class TimelineView extends StatelessWidget {
                       timeWidth: timeWidth,
                       top: trackTop,
                       metrics: metrics,
+                      layout: layout,
                     ),
                 Positioned(
                   right: 0,
@@ -192,7 +210,8 @@ class TimelineView extends StatelessWidget {
   static const _headSize = 10.0;
 
   /// A clip tile cut to the visible window; the parts outside stay hidden
-  /// without clipping, so the tile's focus ring is never cut.
+  /// without clipping, so the tile's focus ring is never cut. Tiles slide
+  /// to a new place (reorder, ripple) except while an edge is dragged.
   Widget _tile({
     required ClipView clip,
     required double left,
@@ -200,22 +219,32 @@ class TimelineView extends StatelessWidget {
     required double timeWidth,
     required double top,
     required TrackMetrics metrics,
+    required _ClipLayout layout,
   }) {
     final visibleLeft = math.max(0.0, left);
     final visibleRight = math.min(timeWidth, right);
-    return Positioned(
+    return AnimatedPositioned(
       key: ValueKey(clip.id),
+      duration: layout.slide,
+      curve: CutcapTokens.motion.curve,
       left: visibleLeft,
       top: top,
       height: metrics.height,
       width: math.max(1.0, visibleRight - visibleLeft),
-      child: ClipTile(
-        clip: clip,
-        rate: state.frameRate,
-        metrics: metrics,
-        hiddenStart: visibleLeft - left,
-        filmWidth: math.max(1.0, right - left),
-        onSelect: () => actions.onSelectClip(clip.id),
+      child: _ClipGestures(
+        id: clip.id,
+        actions: actions,
+        layout: layout,
+        inEdge: visibleLeft == left,
+        outEdge: visibleRight == right,
+        child: ClipTile(
+          clip: clip,
+          rate: state.frameRate,
+          metrics: metrics,
+          hiddenStart: visibleLeft - left,
+          filmWidth: math.max(1.0, right - left),
+          onSelect: () => actions.onSelectClip(clip.id),
+        ),
       ),
     );
   }
@@ -273,6 +302,116 @@ class _Scrubber extends StatelessWidget {
               _seekTo(details.localPosition.dx),
           child: child,
         ),
+      ),
+    );
+  }
+}
+
+/// How the track maps the pointer to time, and how long tiles take to
+/// slide to a new place.
+@immutable
+final class _ClipLayout {
+  const _ClipLayout({
+    required this.timeAt,
+    required this.microsecondsPerPixel,
+    required this.slide,
+  });
+
+  /// Sequence time under a global pointer position.
+  final Duration Function(Offset global) timeAt;
+  final double microsecondsPerPixel;
+  final Duration slide;
+}
+
+/// Drags on a clip: along its body to move it, on an edge ([inEdge],
+/// [outEdge]: that edge is in view) to trim it. A trim reports the edge's
+/// offset at the scale the drag started with.
+class _ClipGestures extends StatefulWidget {
+  const _ClipGestures({
+    required this.id,
+    required this.actions,
+    required this.layout,
+    required this.inEdge,
+    required this.outEdge,
+    required this.child,
+  });
+
+  final ClipId id;
+  final EditorActions actions;
+  final _ClipLayout layout;
+  final bool inEdge;
+  final bool outEdge;
+  final Widget child;
+
+  @override
+  State<_ClipGestures> createState() => _ClipGesturesState();
+}
+
+class _ClipGesturesState extends State<_ClipGestures> {
+  /// Width of the grip on each edge.
+  static const _grip = 8.0;
+
+  double _trimStartX = 0;
+  double _trimScale = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = widget.actions;
+    return Stack(
+      clipBehavior: Clip.none,
+      fit: StackFit.expand,
+      children: [
+        GestureDetector(
+          dragStartBehavior: DragStartBehavior.down,
+          onHorizontalDragStart: (_) => actions.onReorderStart(widget.id),
+          onHorizontalDragUpdate: (details) => actions.onReorderUpdate(
+            widget.layout.timeAt(details.globalPosition),
+          ),
+          onHorizontalDragEnd: (_) => actions.onReorderEnd(),
+          onHorizontalDragCancel: actions.onReorderEnd,
+          child: widget.child,
+        ),
+        if (widget.inEdge)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: _grip,
+            child: _edge(ClipEdge.inPoint),
+          ),
+        if (widget.outEdge)
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: _grip,
+            child: _edge(ClipEdge.outPoint),
+          ),
+      ],
+    );
+  }
+
+  Widget _edge(ClipEdge edge) {
+    final actions = widget.actions;
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeLeftRight,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        dragStartBehavior: DragStartBehavior.down,
+        onHorizontalDragStart: (details) {
+          _trimStartX = details.globalPosition.dx;
+          _trimScale = widget.layout.microsecondsPerPixel;
+          actions.onTrimStart(widget.id, edge);
+        },
+        onHorizontalDragUpdate: (details) => actions.onTrimUpdate(
+          Duration(
+            microseconds:
+                ((details.globalPosition.dx - _trimStartX) * _trimScale)
+                    .round(),
+          ),
+        ),
+        onHorizontalDragEnd: (_) => actions.onTrimEnd(),
+        onHorizontalDragCancel: actions.onTrimEnd,
       ),
     );
   }
