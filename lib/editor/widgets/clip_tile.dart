@@ -318,7 +318,8 @@ class _Filmstrip extends StatelessWidget {
 }
 
 /// The field of a clip whose source file is missing: ink hatching with the
-/// problem named in words, or by icon alone when the clip is too narrow.
+/// problem named in words, by icon alone when the clip is too narrow, and
+/// by the hatching alone when even the icon does not fit.
 class _MissingFilm extends StatelessWidget {
   const _MissingFilm();
 
@@ -338,6 +339,10 @@ class _MissingFilm extends StatelessWidget {
         painter: _HatchPainter(tokens.ink),
         child: LayoutBuilder(
           builder: (context, constraints) {
+            // Too narrow even for the icon: the hatching alone says it.
+            if (iconSize + space.xs * 2 + 2 > constraints.maxWidth) {
+              return const SizedBox.shrink();
+            }
             final label = TextPainter(
               text: TextSpan(text: l10n.fileNotFound, style: style),
               textDirection: Directionality.of(context),
