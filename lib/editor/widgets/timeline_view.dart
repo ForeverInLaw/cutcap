@@ -2,18 +2,19 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-import '../ruler.dart';
-
-import '../../domain/edit_list.dart' show ClipEdge, ClipId;
+import '../../domain/edit_list.dart' show ClipEdge;
 import '../../l10n/app_localizations.dart';
 import '../../theme/cutcap_tokens.dart';
 import '../editor_view_state.dart';
+import '../ruler.dart';
 import '../timecode.dart';
+import 'clip_gestures.dart';
 import 'clip_tile.dart';
 import 'control_button.dart';
 import 'ruler_view.dart';
+import 'track_drag.dart';
+import 'track_navigation.dart';
 
 /// How the playhead rule meets the headline timecode: the rule rises
 /// [rise] px above the ruler, to a red underline just under the time
@@ -33,10 +34,13 @@ final class PlayheadTie {
 ///
 /// Clips are laid out by time across the visible window, back to back with
 /// 4 px gutters. Pressing or dragging on the ruler seeks; every update is
-/// reported at once and nothing waits for the frame. Dragging a clip moves
-/// it along the track while its neighbours slide out of the way; dragging a
-/// clip's edge trims it. [compact] (phone) stacks clip names over lengths
-/// and stretches the ruler to a touch target.
+/// reported at once and nothing waits for the frame. Dragging a clip (with
+/// a finger: after a long press) moves it along the track while its
+/// neighbours slide out of the way; dragging a clip's edge trims it (with a
+/// finger: the selected clip's, from a 48 dp target). Drags held near
+/// either end of the zoomed track scroll it. The wheel and fingers move
+/// around the track ([TrackNavigation]). [compact] (phone) stacks clip
+/// names over lengths and stretches the ruler to a touch target.
 class TimelineView extends StatefulWidget {
   const TimelineView({
     required this.state,
@@ -79,13 +83,32 @@ class TimelineView extends StatefulWidget {
   State<TimelineView> createState() => _TimelineViewState();
 }
 
-class _TimelineViewState extends State<TimelineView> {
+class _TimelineViewState extends State<TimelineView>
+    with SingleTickerProviderStateMixin {
   TimelineWindow? _lastWindow;
   List<ClipView>? _lastClips;
+  TrackSpace? _space;
+  late final TrackDrag _drag;
 
   EditorViewState get state => widget.state;
   EditorActions get actions => widget.actions;
   PlayheadTie get tie => widget.tie;
+
+  @override
+  void initState() {
+    super.initState();
+    _drag = TrackDrag(
+      vsync: this,
+      space: () => _space!,
+      actions: () => widget.actions,
+    );
+  }
+
+  @override
+  void dispose() {
+    _drag.dispose();
+    super.dispose();
+  }
 
   /// Tiles slide to a new place after an edit (reorder, ripple), but follow
   /// zooming, scrolling and a dragged edge at once, in step with the ruler.
@@ -118,17 +141,16 @@ class _TimelineViewState extends State<TimelineView> {
       builder: (context, constraints) {
         final timeWidth = constraints.maxWidth - addWidth - space.xs;
         double xOf(Duration time) => window.fractionOf(time) * timeWidth;
-        Duration timeAt(Offset global) {
-          final box = context.findRenderObject()! as RenderBox;
-          return window.timeAt(box.globalToLocal(global).dx / timeWidth);
-        }
-
-        final motion = CutcapTokens.motion;
-        final layout = _ClipLayout(
-          timeAt: timeAt,
-          microsecondsPerPixel: window.span.inMicroseconds / timeWidth,
-          slide: slides ? motion.of(context, motion.standard) : Duration.zero,
+        _space = TrackSpace(
+          window: window,
+          width: timeWidth,
+          scrollable: window.span < state.duration,
+          box: () => context.findRenderObject()! as RenderBox,
         );
+        final motion = CutcapTokens.motion;
+        final slide = slides
+            ? motion.of(context, motion.standard)
+            : Duration.zero;
         final playheadX = xOf(state.position);
         final showPlayhead = playheadX >= 0 && playheadX <= timeWidth;
         Widget ruler(RulerLayer layer) => RulerView(
@@ -139,7 +161,7 @@ class _TimelineViewState extends State<TimelineView> {
         );
         Widget red() => const ColoredBox(color: CutcapTokens.signal);
 
-        return _WheelZoom(
+        return TrackNavigation(
           window: window,
           trackWidth: timeWidth,
           actions: actions,
@@ -165,8 +187,9 @@ class _TimelineViewState extends State<TimelineView> {
                     ),
                   ),
                   for (final (clip, start) in _placed(state.clips))
-                    if (start < window.end &&
-                        start + clip.duration > window.start)
+                    if ((start < window.end &&
+                            start + clip.duration > window.start) ||
+                        clip.id == _drag.clip)
                       _tile(
                         clip: clip,
                         left: xOf(start),
@@ -174,8 +197,31 @@ class _TimelineViewState extends State<TimelineView> {
                         timeWidth: timeWidth,
                         top: trackTop,
                         metrics: metrics,
-                        layout: layout,
+                        slide: slide,
                       ),
+                  // Finger targets for the selected clip's edges, over its
+                  // neighbours; nothing is drawn.
+                  for (final (clip, start) in _placed(state.clips))
+                    if (clip.isSelected)
+                      for (final (edge, x) in [
+                        (ClipEdge.inPoint, xOf(start)),
+                        (
+                          ClipEdge.outPoint,
+                          xOf(start + clip.duration) - space.xs,
+                        ),
+                      ])
+                        if (x >= 0 && x <= timeWidth)
+                          Positioned(
+                            left: x - TrimHandle.width / 2,
+                            width: TrimHandle.width,
+                            top: trackTop,
+                            height: metrics.height,
+                            child: TrimHandle(
+                              id: clip.id,
+                              edge: edge,
+                              drag: _drag,
+                            ),
+                          ),
                   Positioned(
                     right: 0,
                     top: filmTop,
@@ -241,7 +287,9 @@ class _TimelineViewState extends State<TimelineView> {
 
   /// A clip tile cut to the visible window; the parts outside stay hidden
   /// without clipping, so the tile's focus ring is never cut. Tiles slide
-  /// to a new place (reorder, ripple) except while an edge is dragged.
+  /// to a new place (reorder, ripple) except while an edge is dragged. A
+  /// dragged clip scrolled out of view stays built, offstage, so its drag
+  /// goes on.
   Widget _tile({
     required ClipView clip,
     required double left,
@@ -249,31 +297,34 @@ class _TimelineViewState extends State<TimelineView> {
     required double timeWidth,
     required double top,
     required TrackMetrics metrics,
-    required _ClipLayout layout,
+    required Duration slide,
   }) {
-    final visibleLeft = math.max(0.0, left);
-    final visibleRight = math.min(timeWidth, right);
+    final visibleLeft = left.clamp(0.0, timeWidth);
+    final visibleRight = right.clamp(0.0, timeWidth);
     return AnimatedPositioned(
       key: ValueKey(clip.id),
-      duration: layout.slide,
+      duration: slide,
       curve: CutcapTokens.motion.curve,
       left: visibleLeft,
       top: top,
       height: metrics.height,
       width: math.max(1.0, visibleRight - visibleLeft),
-      child: _ClipGestures(
-        id: clip.id,
-        actions: actions,
-        layout: layout,
-        inEdge: visibleLeft == left,
-        outEdge: visibleRight == right,
-        child: ClipTile(
-          clip: clip,
-          rate: state.frameRate,
-          metrics: metrics,
-          hiddenStart: visibleLeft - left,
-          filmWidth: math.max(1.0, right - left),
-          onSelect: () => actions.onSelectClip(clip.id),
+      child: Offstage(
+        offstage: visibleRight <= visibleLeft,
+        child: ClipGestures(
+          id: clip.id,
+          drag: _drag,
+          inEdge: visibleLeft == left,
+          outEdge: visibleRight == right,
+          onLift: () => actions.onSelectClip(clip.id),
+          child: ClipTile(
+            clip: clip,
+            rate: state.frameRate,
+            metrics: metrics,
+            hiddenStart: visibleLeft - left,
+            filmWidth: math.max(1.0, right - left),
+            onSelect: () => actions.onSelectClip(clip.id),
+          ),
         ),
       ),
     );
@@ -290,8 +341,9 @@ class _TimelineViewState extends State<TimelineView> {
 }
 
 /// Turns presses and drags across the ruler into seeks, and exposes the
-/// ruler to assistive tech as a slider stepped frame by frame.
-class _Scrubber extends StatelessWidget {
+/// ruler to assistive tech as a slider stepped frame by frame. A finger
+/// snaps to cuts from twice as far as a mouse.
+class _Scrubber extends StatefulWidget {
   const _Scrubber({
     required this.state,
     required this.actions,
@@ -304,19 +356,33 @@ class _Scrubber extends StatelessWidget {
   final double width;
   final Widget child;
 
+  @override
+  State<_Scrubber> createState() => _ScrubberState();
+}
+
+class _ScrubberState extends State<_Scrubber> {
   /// How close to a cut, in pixels, the playhead snaps to it.
-  static const _snapDistance = 8.0;
+  static const _mouseSnap = 8.0;
+  static const _touchSnap = 16.0;
+
+  double _snap = _mouseSnap;
+
+  void _press(PointerDeviceKind? kind) =>
+      _snap = PointerKinds.isTouch(kind) ? _touchSnap : _mouseSnap;
 
   void _seekTo(double dx) {
-    final window = state.visibleWindow;
-    actions.onScrub(
+    final window = widget.state.visibleWindow;
+    final width = widget.width;
+    widget.actions.onScrub(
       window.timeAt(dx / width),
-      window.span * (_snapDistance / width),
+      window.span * (_snap / width),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final state = widget.state;
+    final actions = widget.actions;
     final rate = state.frameRate;
     final frame = rate.frameDuration;
     final previous = state.position - frame;
@@ -335,163 +401,15 @@ class _Scrubber extends StatelessWidget {
         cursor: SystemMouseCursors.resizeColumn,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTapDown: (details) => _seekTo(details.localPosition.dx),
+          onTapDown: (details) {
+            _press(details.kind);
+            _seekTo(details.localPosition.dx);
+          },
+          onHorizontalDragStart: (details) => _press(details.kind),
           onHorizontalDragUpdate: (details) =>
               _seekTo(details.localPosition.dx),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-/// The mouse wheel over the timeline: with Ctrl it zooms around the
-/// cursor, without it scrolls the zoomed track (either wheel axis, so
-/// Shift+wheel and touchpads work too).
-class _WheelZoom extends StatelessWidget {
-  const _WheelZoom({
-    required this.window,
-    required this.trackWidth,
-    required this.actions,
-    required this.child,
-  });
-
-  final TimelineWindow window;
-  final double trackWidth;
-  final EditorActions actions;
-  final Widget child;
-
-  /// Wheel travel (logical px) that doubles or halves the span.
-  static const _doublingTravel = 240.0;
-
-  void _onSignal(PointerSignalEvent event) {
-    if (event is! PointerScrollEvent || trackWidth <= 0) return;
-    GestureBinding.instance.pointerSignalResolver.register(event, (event) {
-      final scroll = event as PointerScrollEvent;
-      final delta = scroll.scrollDelta;
-      if (HardwareKeyboard.instance.isControlPressed) {
-        actions.onZoom(
-          math.pow(2, delta.dy / _doublingTravel).toDouble(),
-          (scroll.localPosition.dx / trackWidth).clamp(0.0, 1.0),
-          trackWidth,
-        );
-        return;
-      }
-      final pixels = delta.dx != 0 ? delta.dx : delta.dy;
-      actions.onScrollTimeline(window.span * (pixels / trackWidth));
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      Listener(onPointerSignal: _onSignal, child: child);
-}
-
-/// How the track maps the pointer to time, and how long tiles take to
-/// slide to a new place.
-@immutable
-final class _ClipLayout {
-  const _ClipLayout({
-    required this.timeAt,
-    required this.microsecondsPerPixel,
-    required this.slide,
-  });
-
-  /// Sequence time under a global pointer position.
-  final Duration Function(Offset global) timeAt;
-  final double microsecondsPerPixel;
-  final Duration slide;
-}
-
-/// Drags on a clip: along its body to move it, on an edge ([inEdge],
-/// [outEdge]: that edge is in view) to trim it. A trim reports the edge's
-/// offset at the scale the drag started with.
-class _ClipGestures extends StatefulWidget {
-  const _ClipGestures({
-    required this.id,
-    required this.actions,
-    required this.layout,
-    required this.inEdge,
-    required this.outEdge,
-    required this.child,
-  });
-
-  final ClipId id;
-  final EditorActions actions;
-  final _ClipLayout layout;
-  final bool inEdge;
-  final bool outEdge;
-  final Widget child;
-
-  @override
-  State<_ClipGestures> createState() => _ClipGesturesState();
-}
-
-class _ClipGesturesState extends State<_ClipGestures> {
-  /// Width of the grip on each edge.
-  static const _grip = 8.0;
-
-  double _trimStartX = 0;
-  double _trimScale = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    final actions = widget.actions;
-    return Stack(
-      clipBehavior: Clip.none,
-      fit: StackFit.expand,
-      children: [
-        GestureDetector(
-          dragStartBehavior: DragStartBehavior.down,
-          onHorizontalDragStart: (_) => actions.onReorderStart(widget.id),
-          onHorizontalDragUpdate: (details) => actions.onReorderUpdate(
-            widget.layout.timeAt(details.globalPosition),
-          ),
-          onHorizontalDragEnd: (_) => actions.onReorderEnd(),
-          onHorizontalDragCancel: actions.onReorderEnd,
           child: widget.child,
         ),
-        if (widget.inEdge)
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: _grip,
-            child: _edge(ClipEdge.inPoint),
-          ),
-        if (widget.outEdge)
-          Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: _grip,
-            child: _edge(ClipEdge.outPoint),
-          ),
-      ],
-    );
-  }
-
-  Widget _edge(ClipEdge edge) {
-    final actions = widget.actions;
-    return MouseRegion(
-      cursor: SystemMouseCursors.resizeLeftRight,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        dragStartBehavior: DragStartBehavior.down,
-        onHorizontalDragStart: (details) {
-          _trimStartX = details.globalPosition.dx;
-          _trimScale = widget.layout.microsecondsPerPixel;
-          actions.onTrimStart(widget.id, edge);
-        },
-        onHorizontalDragUpdate: (details) => actions.onTrimUpdate(
-          Duration(
-            microseconds:
-                ((details.globalPosition.dx - _trimStartX) * _trimScale)
-                    .round(),
-          ),
-        ),
-        onHorizontalDragEnd: (_) => actions.onTrimEnd(),
-        onHorizontalDragCancel: actions.onTrimEnd,
       ),
     );
   }

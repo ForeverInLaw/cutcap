@@ -176,6 +176,27 @@ abstract final class CutcapTheme {
           iconSize: 20,
         ),
       ),
+      // Menus are a graphite field cut out by a hairline, never a raised
+      // card; items are 48 dp rows.
+      menuTheme: MenuThemeData(
+        style: MenuStyle(
+          backgroundColor: WidgetStatePropertyAll(t.workspace),
+          elevation: const WidgetStatePropertyAll(0),
+          padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+          shape: WidgetStatePropertyAll(
+            shape.copyWith(side: BorderSide(color: t.ink)),
+          ),
+        ),
+      ),
+      menuButtonTheme: MenuButtonThemeData(
+        style: MenuItemButton.styleFrom(
+          minimumSize: const Size(0, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          foregroundColor: t.ink,
+          disabledForegroundColor: disabledInk,
+          textStyle: textTheme.labelLarge,
+        ),
+      ),
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(shape: shape, iconSize: 22),
       ),

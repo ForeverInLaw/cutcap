@@ -9,8 +9,8 @@ import 'editor_controls.dart';
 /// bar's controls, paper on black.
 ///
 /// Desktop carries Clear track, Add video and Export; the phone carries
-/// Undo, Redo and Export (adding happens from the add tile at the end of
-/// the track).
+/// Undo, Redo, Export and an overflow holding Clear track (adding happens
+/// from the add tile at the end of the track).
 class EditorTopBar extends StatelessWidget {
   const EditorTopBar({
     required this.controls,
@@ -41,16 +41,26 @@ class EditorTopBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Semantics(
-              header: true,
-              child: Text(
-                AppLocalizations.of(context).appTitle,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(color: CutcapTokens.onPreview),
+            // The wordmark gives way first when large text crowds the bar;
+            // it scales down whole rather than wrapping.
+            Expanded(
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      AppLocalizations.of(context).appTitle,
+                      maxLines: 1,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: CutcapTokens.onPreview,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-            const Spacer(),
             if (touch) ...[
               controls.undo(kind: ControlKind.plain),
               controls.redo(kind: ControlKind.plain),
@@ -62,6 +72,7 @@ class EditorTopBar extends StatelessWidget {
               SizedBox(width: space.l),
             ],
             controls.export(),
+            if (touch) controls.more(),
           ],
         ),
       ),
