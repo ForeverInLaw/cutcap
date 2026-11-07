@@ -57,7 +57,8 @@ final sessionStoreProvider = Provider<SessionStore>(
   ),
 );
 
-/// The files the app was started with ("Open with"); main overrides it.
+/// The files the app was started with (Windows "Open with", the share that
+/// started it on Android); main overrides it.
 final launchFilesProvider = Provider<List<String>>((ref) => const []);
 
 /// Whether a source file is still there (on Android, still readable by its

@@ -25,9 +25,15 @@ abstract final class AndroidDocuments {
   static Future<String?> stamp(String path) =>
       AndroidChannels.documents.invokeMethod<String>('stamp', {'path': path});
 
-  /// Videos shared into the app ("Share → cutcap"), one batch per share in
-  /// the order they were shared: first the share that launched the app,
-  /// then each one that arrives while it runs. Listen once.
+  /// The videos of the share that launched the app (and any that came
+  /// before the editor listened to [shared]), in the order shared.
+  static Future<List<String>> launchShares() async =>
+      await AndroidChannels.documents.invokeListMethod<String>('takeShared') ??
+      const [];
+
+  /// Videos shared into the app while it runs ("Share → cutcap"), one batch
+  /// per share in the order they were shared. Listen once, after
+  /// [launchShares].
   static Stream<List<String>> shared() {
     late final StreamController<List<String>> batches;
     batches = StreamController(
@@ -38,10 +44,10 @@ abstract final class AndroidDocuments {
           if (uris.isNotEmpty) batches.add(uris.toList());
         });
         // From now on the Kotlin side calls 'shared' itself; this collects
-        // what arrived before anyone listened.
+        // what arrived since [launchShares].
         final waiting =
             await AndroidChannels.documents.invokeListMethod<String>(
-              'takeShared',
+              'listenShared',
             ) ??
             const [];
         if (waiting.isNotEmpty) batches.add(waiting);

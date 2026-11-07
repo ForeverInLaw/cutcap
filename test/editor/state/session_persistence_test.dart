@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cutcap/domain/editor_session.dart';
@@ -124,6 +125,35 @@ void main() {
       await container.read(sessionStoreProvider).flush();
     },
   );
+
+  test('appends videos shared into the app after the launch files, one '
+      'share after the other', () async {
+    await editAndQuit();
+    final shares = StreamController<List<String>>();
+    // Shared while the saved edit is still loading.
+    shares.add([_b.path]);
+
+    final container = launch();
+    final launched = container.read(editorControllerProvider).launch([
+      _c.path,
+    ], shared: shares.stream);
+    await pumpEventQueue();
+    shares.add([_c.path, _a.path]);
+    await shares.close();
+    await launched;
+
+    expect(spans(container).skip(4), [
+      ('c.mp4', 0, 2000),
+      ('b.mp4', 0, 3000),
+      ('c.mp4', 0, 2000),
+      ('a.mp4', 0, 4000),
+    ]);
+    expect(spans(container).take(2), [
+      ('a.mp4', 0, 1000),
+      ('a.mp4', 1000, 4000),
+    ]);
+    await container.read(sessionStoreProvider).flush();
+  });
 
   test('saves every edit as it happens', () async {
     final container = launch();

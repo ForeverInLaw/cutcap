@@ -80,10 +80,19 @@ final class EditorController {
   // Session ----------------------------------------------------------------
 
   /// Starts the editor: restores the last edit, then appends [files], the
-  /// ones the app was opened with ("Open with"). Called once at launch.
-  Future<void> launch(List<String> files) async {
+  /// ones the app was opened with ("Open with", or the share that started
+  /// it on Android), then each batch of [shared] videos in turn as it
+  /// arrives (shares while running); completes when [shared] closes.
+  /// Called once at launch.
+  Future<void> launch(
+    List<String> files, {
+    Stream<List<String>> shared = const Stream.empty(),
+  }) async {
     await restoreSession();
     await addFiles(files);
+    await for (final batch in shared) {
+      await addFiles(batch);
+    }
   }
 
   /// Brings back the edit saved by the last run, flags sources whose file
