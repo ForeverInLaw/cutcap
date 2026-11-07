@@ -8,8 +8,9 @@ import 'editor_controls.dart';
 /// The bar on the black preview field: the lowercase wordmark and the
 /// bar's controls, paper on black.
 ///
-/// Desktop carries Add video and Export; the phone carries Undo, Redo and
-/// Export (adding happens from the add tile at the end of the track).
+/// Desktop carries Clear track, Add video and Export; the phone carries
+/// Undo, Redo and Export (adding happens from the add tile at the end of
+/// the track).
 class EditorTopBar extends StatelessWidget {
   const EditorTopBar({
     required this.controls,
@@ -55,6 +56,8 @@ class EditorTopBar extends StatelessWidget {
               controls.redo(kind: ControlKind.plain),
               SizedBox(width: space.s),
             ] else if (showAddVideo) ...[
+              controls.clear(),
+              SizedBox(width: space.s),
               controls.addVideo(),
               SizedBox(width: space.l),
             ],

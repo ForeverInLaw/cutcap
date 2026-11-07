@@ -150,5 +150,17 @@
   "retryExport": "Try again",
   "@retryExport": {
     "description": "Button that restarts a failed export."
+  },
+  "clearTrack": "Clear track",
+  "@clearTrack": {
+    "description": "Button that removes every clip from the track; it can be undone."
+  },
+  "couldNotOpen": "{count, plural, one{{names} could not be opened as a video} other{{count} files could not be opened as videos: {names}}}",
+  "@couldNotOpen": {
+    "description": "Shown when picked files are not videos this device can play; the other picked files were still added. names lists the file names, comma-separated.",
+    "placeholders": {
+      "count": {"type": "int"},
+      "names": {"type": "String"}
+    }
   }
 }

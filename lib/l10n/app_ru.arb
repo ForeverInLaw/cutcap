@@ -32,5 +32,7 @@
   "dismiss": "Закрыть",
   "exportFailed": "Экспорт не удался: {reason}",
   "editIntact": "Монтаж не пострадал.",
-  "retryExport": "Попробовать снова"
+  "retryExport": "Попробовать снова",
+  "clearTrack": "Очистить дорожку",
+  "couldNotOpen": "{count, plural, one{Не удалось открыть видео {names}} few{Не удалось открыть {count} файла: {names}} many{Не удалось открыть {count} файлов: {names}} other{Не удалось открыть {count} файла: {names}}}"
 }
