@@ -56,4 +56,7 @@ final class FrameRate {
 
   @override
   int get hashCode => Object.hash(numerator, denominator);
+
+  @override
+  String toString() => '$numerator/$denominator';
 }

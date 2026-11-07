@@ -1,0 +1,5 @@
+tags:
+  # Runs the real ffmpeg and ffprobe from PATH; skipped when they are absent.
+  # Select or exclude with `flutter test --tags ffmpeg` / `--exclude-tags ffmpeg`.
+  ffmpeg:
+    timeout: 2x
