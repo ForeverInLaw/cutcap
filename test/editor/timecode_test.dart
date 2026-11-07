@@ -48,6 +48,15 @@ void main() {
     });
   });
 
+  group('FrameRate', () {
+    test('one frame at 29.97 fps lasts 33 366 µs', () {
+      expect(
+        const FrameRate(30000, 1001).frameDuration,
+        const Duration(microseconds: 33366),
+      );
+    });
+  });
+
   group('Timecode.compact', () {
     test('drops the hours under an hour', () {
       expect(

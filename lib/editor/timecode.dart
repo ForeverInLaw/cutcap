@@ -8,6 +8,20 @@ final class FrameRate {
 
   /// The rate as a decimal, for display (`29.97`).
   double get perSecond => numerator / denominator;
+
+  /// One frame, truncated to whole microseconds.
+  Duration get frameDuration => Duration(
+    microseconds: denominator * Duration.microsecondsPerSecond ~/ numerator,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is FrameRate &&
+      other.numerator == numerator &&
+      other.denominator == denominator;
+
+  @override
+  int get hashCode => Object.hash(numerator, denominator);
 }
 
 /// Formats sequence times with the frame within the second as the last field.
