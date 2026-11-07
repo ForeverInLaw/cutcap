@@ -66,6 +66,7 @@ final class ClipView {
     required this.id,
     required this.name,
     required this.duration,
+    this.aspectRatio = 16 / 9,
     this.thumbnails = const [],
     this.isSelected = false,
     this.isJustEdited = false,
@@ -77,6 +78,10 @@ final class ClipView {
   /// Source file name.
   final String name;
   final Duration duration;
+
+  /// Display width over height of the source (after rotation); filmstrip
+  /// cells take this shape so thumbnails show whole.
+  final double aspectRatio;
 
   /// Filmstrip frames in source order; solid frames are drawn while empty.
   final List<ImageProvider> thumbnails;

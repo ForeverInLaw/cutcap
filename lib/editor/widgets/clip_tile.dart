@@ -8,27 +8,16 @@ import 'focus_ring.dart';
 import 'timecode_text.dart';
 
 /// Track metrics shared by the clip tiles, the add tile and the playhead.
+/// The label row grows with the system text size.
 @immutable
 final class TrackMetrics {
-  const TrackMetrics({
-    required this.labelHeight,
-    required this.labelGap,
-    required this.filmHeight,
-  });
+  TrackMetrics(TextScaler scaler, {required this.filmHeight})
+    : labelHeight = (scaler.scale(_labelSize) * 1.3).ceilToDouble();
 
-  static const desktop = TrackMetrics(
-    labelHeight: 14,
-    labelGap: 6,
-    filmHeight: 110,
-  );
-  static const phone = TrackMetrics(
-    labelHeight: 14,
-    labelGap: 4,
-    filmHeight: 72,
-  );
+  static const _labelSize = 11.0;
+  static const labelGap = 6.0;
 
   final double labelHeight;
-  final double labelGap;
   final double filmHeight;
 
   double get height => labelHeight + labelGap + filmHeight;
@@ -37,12 +26,18 @@ final class TrackMetrics {
 /// One clip: its name and length above a filmstrip. Selected clips carry a
 /// 2 px ink frame, the just-edited clip a red base line, and a clip whose
 /// file is gone a hatched field that says so.
+///
+/// The tile covers only the part of the clip inside the visible window, so
+/// its label stays in view; [hiddenStart] (px of the clip left of the window)
+/// and [filmWidth] (the whole clip) keep the filmstrip frames in place.
 class ClipTile extends StatelessWidget {
   const ClipTile({
     required this.clip,
     required this.rate,
     required this.metrics,
     required this.onSelect,
+    required this.hiddenStart,
+    required this.filmWidth,
     super.key,
   });
 
@@ -50,6 +45,8 @@ class ClipTile extends StatelessWidget {
   final FrameRate rate;
   final TrackMetrics metrics;
   final VoidCallback onSelect;
+  final double hiddenStart;
+  final double filmWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +95,7 @@ class ClipTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              SizedBox(height: metrics.labelGap),
+              const SizedBox(height: TrackMetrics.labelGap),
               SizedBox(
                 height: metrics.filmHeight,
                 child: Stack(
@@ -107,7 +104,12 @@ class ClipTile extends StatelessWidget {
                     if (clip.isMissing)
                       const _MissingFilm()
                     else
-                      _Filmstrip(clip.thumbnails, tokens.frame),
+                      _Filmstrip(
+                        clip: clip,
+                        frameColor: tokens.frame,
+                        hiddenStart: hiddenStart,
+                        filmWidth: filmWidth,
+                      ),
                     _Marker(
                       visible: clip.isJustEdited,
                       duration: fade,
@@ -162,28 +164,36 @@ class _Marker extends StatelessWidget {
   );
 }
 
-/// Frames across the clip, 1 px apart. Thumbnails are sampled evenly; solid
-/// frames stand in until they load.
+/// Frames across the clip, 1 px apart, each shaped like the source so
+/// thumbnails show whole. Thumbnails are sampled evenly; solid frames stand
+/// in until they load.
 class _Filmstrip extends StatelessWidget {
-  const _Filmstrip(this.thumbnails, this.frameColor);
+  const _Filmstrip({
+    required this.clip,
+    required this.frameColor,
+    required this.hiddenStart,
+    required this.filmWidth,
+  });
 
-  final List<ImageProvider> thumbnails;
+  final ClipView clip;
   final Color frameColor;
-
-  /// Frame width relative to the strip height.
-  static const _frameAspect = 0.6;
+  final double hiddenStart;
+  final double filmWidth;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final frameWidth = constraints.maxHeight * _frameAspect;
-      final count = (constraints.maxWidth / frameWidth).ceil().clamp(1, 1000);
+      final thumbnails = clip.thumbnails;
+      final frameWidth = constraints.maxHeight * clip.aspectRatio;
+      final count = (filmWidth / frameWidth).ceil().clamp(1, 10000);
+      final first = (hiddenStart / frameWidth).floor();
+      final last = ((hiddenStart + constraints.maxWidth) / frameWidth).ceil();
       return ClipRect(
         child: Stack(
           children: [
-            for (var i = 0; i < count; i++)
+            for (var i = first; i < last && i < count; i++)
               Positioned(
-                left: i * frameWidth,
+                left: i * frameWidth - hiddenStart,
                 top: 0,
                 bottom: 0,
                 width: frameWidth - 1,

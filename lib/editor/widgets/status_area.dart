@@ -26,7 +26,7 @@ class StatusArea extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final motion = CutcapTokens.motion;
-    final size = compact ? 48.0 : 40.0;
+    const size = 48.0;
     final close = ControlButton(
       icon: Icons.close_sharp,
       label: l10n.dismiss,
@@ -132,7 +132,7 @@ class _Summary extends StatelessWidget {
       ),
     ];
     return _Ruled(
-      height: 36,
+      minHeight: _ExportPanel.desktopHeight,
       child: Align(
         alignment: AlignmentDirectional.centerStart,
         child: TimecodeText(
@@ -150,6 +150,9 @@ class _Summary extends StatelessWidget {
 /// progress line, and the actions. One row on desktop; stacked on the
 /// phone so long messages wrap instead of squeezing the buttons.
 class _ExportPanel extends StatelessWidget {
+  /// Desktop band height, shared with the summary so the band never jumps.
+  static const desktopHeight = 64.0;
+
   const _ExportPanel({
     required this.compact,
     required this.message,
@@ -243,34 +246,44 @@ class _ExportPanel extends StatelessWidget {
     }
 
     return _Ruled(
-      height: 64,
-      child: Row(
-        children: [
-          if (bar != null) ...[
-            SizedBox(width: 168, child: messageBlock),
-            Expanded(child: bar),
-          ] else
-            Expanded(child: messageBlock),
-          SizedBox(width: space.xl),
-          actionRow,
-        ],
+      minHeight: desktopHeight,
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: space.s),
+        child: Row(
+          children: [
+            if (bar != null) ...[
+              SizedBox(width: 168, child: messageBlock),
+              Expanded(child: bar),
+            ] else
+              Expanded(child: messageBlock),
+            SizedBox(width: space.xl),
+            actionRow,
+          ],
+        ),
       ),
     );
   }
 }
 
-/// A band under a hairline ink rule.
+/// A band under a hairline ink rule; grows past [minHeight] with the
+/// system text size.
 class _Ruled extends StatelessWidget {
-  const _Ruled({required this.child, this.height});
+  const _Ruled({required this.child, this.minHeight = 0});
 
   final Widget child;
-  final double? height;
+  final double minHeight;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
       border: Border(top: BorderSide(color: CutcapTokens.of(context).ink)),
     ),
-    child: SizedBox(height: height, width: double.infinity, child: child),
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: minHeight,
+        minWidth: double.infinity,
+      ),
+      child: child,
+    ),
   );
 }

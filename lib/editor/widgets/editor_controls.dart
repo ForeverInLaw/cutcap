@@ -7,7 +7,8 @@ import 'control_button.dart';
 /// Builds each editor control once, wired to state and actions, so the
 /// desktop and phone layouts only decide where controls go.
 ///
-/// [touch] selects the phone sizing: 48 dp targets and no shortcut hints.
+/// Every control is a 48 dp target, except the desktop top bar's words,
+/// which sit at 40 in the 56 dp bar. [touch] (phone) drops shortcut hints.
 final class EditorControls {
   EditorControls(
     BuildContext context, {
@@ -21,7 +22,8 @@ final class EditorControls {
   final bool touch;
   final AppLocalizations _l10n;
 
-  double get _size => touch ? 48 : 40;
+  static const double _size = 48;
+  double get _barSize => touch ? 48 : 40;
   String? _key(String key) => touch ? null : key;
   VoidCallback? _when(bool enabled, VoidCallback action) =>
       enabled ? action : null;
@@ -31,7 +33,7 @@ final class EditorControls {
     label: _l10n.previousFrame,
     shortcut: _key('←'),
     onPressed: _when(!state.isEmpty, actions.onStepBackward),
-    size: 48,
+    size: _size,
   );
 
   Widget playPause() => ControlButton(
@@ -49,7 +51,7 @@ final class EditorControls {
     label: _l10n.nextFrame,
     shortcut: _key('→'),
     onPressed: _when(!state.isEmpty, actions.onStepForward),
-    size: 48,
+    size: _size,
   );
 
   Widget split({bool showLabel = false}) => ControlButton(
@@ -88,17 +90,14 @@ final class EditorControls {
     size: _size,
   );
 
-  /// The top bar shows words only; the empty state adds the plus.
-  Widget addVideo({
-    ControlKind kind = ControlKind.plain,
-    bool withIcon = false,
-  }) => ControlButton(
-    icon: withIcon ? Icons.add_sharp : null,
+  /// In the top bar: words only. In the empty state: filled, with a plus.
+  Widget addVideo({bool inBar = true}) => ControlButton(
+    icon: inBar ? null : Icons.add_sharp,
     label: _l10n.addVideo,
     onPressed: actions.onAddVideo,
-    kind: kind,
+    kind: inBar ? ControlKind.plain : ControlKind.filled,
     showLabel: true,
-    size: _size,
+    size: inBar ? _barSize : _size,
   );
 
   Widget export() => ControlButton(
@@ -106,6 +105,6 @@ final class EditorControls {
     onPressed: _when(state.canExport, actions.onExport),
     kind: ControlKind.filled,
     showLabel: true,
-    size: _size,
+    size: _barSize,
   );
 }

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../theme/cutcap_tokens.dart';
-import 'control_button.dart';
 import 'editor_controls.dart';
 
-/// The workspace before any clip exists: says what the editor does and puts
-/// Add video where the track will appear. On desktop the track area is also
-/// marked as a drop target.
+/// The whole workspace before any clip exists; the preview field collapses
+/// while there is nothing to show. It says what the editor does and puts
+/// Add video in reach: inside a drop target that fills the window on
+/// desktop, at the bottom of the screen on the phone.
+///
+/// Fills the height it is given.
 class EmptyWorkspace extends StatelessWidget {
   const EmptyWorkspace({
     required this.controls,
@@ -25,14 +27,10 @@ class EmptyWorkspace extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final space = CutcapTokens.space;
     final touch = controls.touch;
-    final addVideo = controls.addVideo(
-      kind: ControlKind.filled,
-      withIcon: true,
-    );
+    final addVideo = controls.addVideo(inBar: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
       children: [
         Semantics(
           header: true,
@@ -50,28 +48,28 @@ class EmptyWorkspace extends StatelessWidget {
           ),
         ),
         SizedBox(height: touch ? space.xl : space.xxl),
-        if (touch)
-          SizedBox(width: double.infinity, child: addVideo)
-        else
-          DecoratedBox(
-            decoration: BoxDecoration(border: Border.all(color: tokens.ink)),
-            child: SizedBox(
-              height: 128,
-              width: double.infinity,
+        if (touch) ...[
+          const Spacer(),
+          SizedBox(width: double.infinity, child: addVideo),
+        ] else
+          Expanded(
+            child: DecoratedBox(
+              decoration: BoxDecoration(border: Border.all(color: tokens.ink)),
               child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Wrap(
+                  spacing: space.l,
+                  runSpacing: space.s,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.center,
                   children: [
                     addVideo,
-                    if (acceptsFileDrop) ...[
-                      SizedBox(width: space.l),
+                    if (acceptsFileDrop)
                       Text(
                         l10n.dropHint,
                         style: text.bodyMedium?.copyWith(
                           color: tokens.inkSecondary,
                         ),
                       ),
-                    ],
                   ],
                 ),
               ),

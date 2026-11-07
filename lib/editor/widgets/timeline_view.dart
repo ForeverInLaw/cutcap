@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -14,35 +16,55 @@ import 'ruler_view.dart';
 /// Clips are laid out by time across the visible window, back to back with
 /// 4 px gutters. Pressing or dragging on the ruler seeks; every update is
 /// reported at once and nothing waits for the frame.
+///
+/// The playhead rule starts [playheadLead] px above the ruler so it reaches
+/// the headline timecode's baseline: the time and the rule read as one.
 class TimelineView extends StatelessWidget {
   const TimelineView({
     required this.state,
     required this.actions,
     required this.compact,
+    required this.playheadLead,
     super.key,
   });
 
   final EditorViewState state;
   final EditorActions actions;
   final bool compact;
+  final double playheadLead;
+
+  static const filmHeight = 110.0;
+  static const _rulerGap = 8.0;
+
+  /// The view's height at the current text size: top rule, ruler, track.
+  static double heightOf(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context);
+    return 1 +
+        RulerMetrics(scaler).height +
+        _rulerGap +
+        TrackMetrics(scaler, filmHeight: filmHeight).height;
+  }
 
   @override
   Widget build(BuildContext context) {
     final tokens = CutcapTokens.of(context);
     final space = CutcapTokens.space;
-    final metrics = compact ? TrackMetrics.phone : TrackMetrics.desktop;
-    final rulerHeight = compact ? 36.0 : 40.0;
-    final rulerGap = compact ? space.s : 10.0;
+    final scaler = MediaQuery.textScalerOf(context);
+    final metrics = TrackMetrics(scaler, filmHeight: filmHeight);
+    final rulerHeight = RulerMetrics(scaler).height;
+    const rulerGap = _rulerGap;
     final addWidth = compact ? 48.0 : 56.0;
     final trackTop = rulerHeight + rulerGap;
-    final filmTop = trackTop + metrics.labelHeight + metrics.labelGap;
+    final filmTop = trackTop + metrics.labelHeight + TrackMetrics.labelGap;
+    final window = state.visibleWindow;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final timeWidth = constraints.maxWidth - addWidth - space.xs;
-        final window = state.visibleWindow;
         double xOf(Duration time) => window.fractionOf(time) * timeWidth;
         final playheadX = xOf(state.position);
+        Widget ruler(RulerLayer layer) =>
+            RulerView(window: window, rate: state.frameRate, layer: layer);
 
         return DecoratedBox(
           decoration: BoxDecoration(
@@ -62,41 +84,20 @@ class TimelineView extends StatelessWidget {
                     state: state,
                     actions: actions,
                     width: timeWidth,
-                    child: RulerView(window: window, rate: state.frameRate),
+                    child: ruler(RulerLayer.ticks),
                   ),
                 ),
-                Positioned(
-                  left: 0,
-                  top: trackTop,
-                  width: timeWidth,
-                  height: metrics.height,
-                  child: ClipRect(
-                    child: Stack(
-                      children: [
-                        for (final (clip, start) in _placed(state.clips))
-                          if (start < window.end &&
-                              start + clip.duration > window.start)
-                            Positioned(
-                              key: ValueKey(clip.id),
-                              left: xOf(start),
-                              top: 0,
-                              bottom: 0,
-                              width:
-                                  (xOf(start + clip.duration) -
-                                          xOf(start) -
-                                          space.xs)
-                                      .clamp(1.0, double.infinity),
-                              child: ClipTile(
-                                clip: clip,
-                                rate: state.frameRate,
-                                metrics: metrics,
-                                onSelect: () => actions.onSelectClip(clip.id),
-                              ),
-                            ),
-                      ],
+                for (final (clip, start) in _placed(state.clips))
+                  if (start < window.end &&
+                      start + clip.duration > window.start)
+                    _tile(
+                      clip: clip,
+                      left: xOf(start),
+                      right: xOf(start + clip.duration) - space.xs,
+                      timeWidth: timeWidth,
+                      top: trackTop,
+                      metrics: metrics,
                     ),
-                  ),
-                ),
                 Positioned(
                   right: 0,
                   top: filmTop,
@@ -111,15 +112,51 @@ class TimelineView extends StatelessWidget {
                 if (playheadX >= 0 && playheadX <= timeWidth)
                   Positioned(
                     left: playheadX - _Playhead.headSize / 2,
-                    top: 0,
-                    height: trackTop + metrics.height,
-                    child: const IgnorePointer(child: _Playhead()),
+                    top: -playheadLead,
+                    height: playheadLead + trackTop + metrics.height,
+                    child: IgnorePointer(child: _Playhead(lead: playheadLead)),
                   ),
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  width: timeWidth,
+                  height: rulerHeight,
+                  child: IgnorePointer(child: ruler(RulerLayer.labels)),
+                ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  /// A clip tile cut to the visible window; the parts outside stay hidden
+  /// without clipping, so the tile's focus ring is never cut.
+  Widget _tile({
+    required ClipView clip,
+    required double left,
+    required double right,
+    required double timeWidth,
+    required double top,
+    required TrackMetrics metrics,
+  }) {
+    final visibleLeft = math.max(0.0, left);
+    final visibleRight = math.min(timeWidth, right);
+    return Positioned(
+      key: ValueKey(clip.id),
+      left: visibleLeft,
+      top: top,
+      height: metrics.height,
+      width: math.max(1.0, visibleRight - visibleLeft),
+      child: ClipTile(
+        clip: clip,
+        rate: state.frameRate,
+        metrics: metrics,
+        hiddenStart: visibleLeft - left,
+        filmWidth: math.max(1.0, right - left),
+        onSelect: () => actions.onSelectClip(clip.id),
+      ),
     );
   }
 
@@ -181,26 +218,29 @@ class _Scrubber extends StatelessWidget {
   }
 }
 
-/// The red rule with a square head, centred on the playhead time.
+/// The red rule, rising [lead] px above the ruler, with a square head on
+/// the ruler's top edge.
 class _Playhead extends StatelessWidget {
-  const _Playhead();
+  const _Playhead({required this.lead});
+
+  final double lead;
 
   static const headSize = 10.0;
   static const _rule = 2.0;
 
   @override
-  Widget build(BuildContext context) => const SizedBox(
+  Widget build(BuildContext context) => SizedBox(
     width: headSize,
     child: Stack(
       children: [
         Positioned(
-          top: 0,
+          top: lead,
           left: 0,
           width: headSize,
           height: headSize,
-          child: ColoredBox(color: CutcapTokens.signal),
+          child: const ColoredBox(color: CutcapTokens.signal),
         ),
-        Positioned(
+        const Positioned(
           top: 0,
           bottom: 0,
           left: (headSize - _rule) / 2,

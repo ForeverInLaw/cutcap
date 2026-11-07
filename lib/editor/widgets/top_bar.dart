@@ -13,9 +13,16 @@ import 'editor_controls.dart';
 /// Desktop carries Add video and Export; the phone carries Undo, Redo and
 /// Export (adding happens from the add tile at the end of the track).
 class EditorTopBar extends StatelessWidget {
-  const EditorTopBar({required this.controls, super.key});
+  const EditorTopBar({
+    required this.controls,
+    this.showAddVideo = true,
+    super.key,
+  });
 
   final EditorControls controls;
+
+  /// Off while the empty state shows its own Add video.
+  final bool showAddVideo;
 
   /// Desktop height; the phone bar is 64 dp so its 48 dp targets keep
   /// clear of the edges.
@@ -52,7 +59,7 @@ class EditorTopBar extends StatelessWidget {
                   controls.undo(kind: ControlKind.plain),
                   controls.redo(kind: ControlKind.plain),
                   SizedBox(width: space.s),
-                ] else ...[
+                ] else if (showAddVideo) ...[
                   controls.addVideo(),
                   SizedBox(width: space.l),
                 ],

@@ -19,6 +19,29 @@ class PositionReadout extends StatelessWidget {
   final EditorViewState state;
   final bool compact;
 
+  static TextStyle? _timeStyle(BuildContext context, bool compact) {
+    final text = Theme.of(context).textTheme;
+    return (compact ? text.displaySmall : text.displayLarge)?.copyWith(
+      fontFeatures: TimecodeText.tabular,
+    );
+  }
+
+  /// Distance from the readout's bottom edge up to the timecode's baseline,
+  /// at the current text size. Controls beside the readout stand on the
+  /// baseline, and the playhead rule rises to it.
+  static double baselineDrop(BuildContext context, {required bool compact}) {
+    final painter = TextPainter(
+      text: TextSpan(text: '0', style: _timeStyle(context, compact)),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final drop =
+        painter.height -
+        painter.computeDistanceToActualBaseline(TextBaseline.alphabetic);
+    painter.dispose();
+    return drop;
+  }
+
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
@@ -38,17 +61,18 @@ class PositionReadout extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [
-            TimecodeText(
-              position,
-              style: compact ? text.displaySmall : text.displayLarge,
-            ),
+            TimecodeText(position, style: _timeStyle(context, compact)),
             SizedBox(
               width: compact ? CutcapTokens.space.s : CutcapTokens.space.m,
             ),
             TimecodeText(
               total,
+              // Line height 1 so the headline alone sets the baseline drop.
               style: compact
-                  ? text.bodyLarge?.copyWith(color: tokens.inkSecondary)
+                  ? text.bodyLarge?.copyWith(
+                      color: tokens.inkSecondary,
+                      height: 1,
+                    )
                   : text.headlineMedium?.copyWith(color: tokens.inkMuted),
             ),
           ],

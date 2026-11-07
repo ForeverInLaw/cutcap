@@ -18,7 +18,7 @@ class ControlButton extends StatelessWidget {
     this.shortcut,
     this.kind = ControlKind.outlined,
     this.showLabel = false,
-    this.size = 40,
+    this.size = 48,
     this.width,
     this.iconSize,
     super.key,

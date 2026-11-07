@@ -147,7 +147,7 @@ abstract final class CutcapTheme {
         style: OutlinedButton.styleFrom(
           shape: shape,
           padding: padding,
-          minimumSize: const Size(0, 40),
+          minimumSize: const Size(0, 48),
           foregroundColor: t.ink,
           disabledForegroundColor: disabledInk,
           textStyle: textTheme.labelLarge,
@@ -158,7 +158,7 @@ abstract final class CutcapTheme {
         style: FilledButton.styleFrom(
           shape: shape,
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          minimumSize: const Size(0, 40),
+          minimumSize: const Size(0, 48),
           textStyle: textTheme.labelLarge?.copyWith(
             fontWeight: FontWeight.w700,
           ),
@@ -169,7 +169,7 @@ abstract final class CutcapTheme {
         style: TextButton.styleFrom(
           shape: shape,
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          minimumSize: const Size(0, 40),
+          minimumSize: const Size(0, 48),
           foregroundColor: t.ink,
           textStyle: textTheme.labelLarge,
           iconSize: 20,

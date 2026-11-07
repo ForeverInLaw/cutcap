@@ -5,46 +5,124 @@ import '../ruler.dart';
 import '../timecode.dart';
 import 'timecode_text.dart';
 
-/// The time ruler: guide words naming the first and last time in view,
-/// labelled major ticks between them, and minor ticks along the bottom.
+/// Vertical layout of the ruler, scaled with the system text size: the
+/// playhead head on top, the row of guide words and labels under it, ticks
+/// along the bottom.
+@immutable
+final class RulerMetrics {
+  RulerMetrics(TextScaler scaler)
+    : labelLine = (scaler.scale(_labelSize) * 1.25).ceilToDouble();
+
+  static const _labelSize = 12.0;
+
+  /// Room for the playhead head above the labels.
+  static const labelTop = 12.0;
+  static const majorTick = 14.0;
+  static const minorTick = 5.0;
+  static const _labelGap = 4.0;
+
+  final double labelLine;
+
+  double get height => labelTop + labelLine + _labelGap + majorTick;
+}
+
+enum RulerLayer {
+  /// Ticks, drawn under the playhead.
+  ticks,
+
+  /// Guide words and tick labels on paper knockouts, drawn over the
+  /// playhead so the red rule never runs through a time.
+  labels,
+}
+
+/// One layer of the time ruler. The guide words name the first and last
+/// time in view; labelled major ticks sit between them.
 class RulerView extends StatelessWidget {
-  const RulerView({required this.window, required this.rate, super.key});
+  const RulerView({
+    required this.window,
+    required this.rate,
+    required this.layer,
+    super.key,
+  });
 
   final TimelineWindow window;
   final FrameRate rate;
+  final RulerLayer layer;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final tokens = CutcapTokens.of(context);
+    final scaler = MediaQuery.textScalerOf(context);
     return CustomPaint(
       size: Size.infinite,
-      painter: _RulerPainter(
-        window: window,
-        rate: rate,
-        ink: tokens.ink,
-        guideStyle: text.labelMedium!.copyWith(
-          color: tokens.ink,
-          fontFeatures: TimecodeText.tabular,
+      painter: switch (layer) {
+        RulerLayer.ticks => _TickPainter(window, rate, tokens.ink),
+        RulerLayer.labels => _LabelPainter(
+          window: window,
+          rate: rate,
+          paper: tokens.workspace,
+          metrics: RulerMetrics(scaler),
+          guideStyle: text.labelMedium!.copyWith(
+            color: tokens.ink,
+            fontFeatures: TimecodeText.tabular,
+          ),
+          labelStyle: text.labelMedium!.copyWith(
+            color: tokens.inkSecondary,
+            fontWeight: FontWeight.w400,
+            fontFeatures: TimecodeText.tabular,
+          ),
+          textDirection: Directionality.of(context),
+          textScaler: scaler,
         ),
-        labelStyle: text.labelSmall!.copyWith(
-          color: tokens.inkSecondary,
-          fontWeight: FontWeight.w400,
-          letterSpacing: 0,
-          fontFeatures: TimecodeText.tabular,
-        ),
-        textDirection: Directionality.of(context),
-        textScaler: MediaQuery.textScalerOf(context),
-      ),
+      },
     );
   }
 }
 
-class _RulerPainter extends CustomPainter {
-  _RulerPainter({
+/// x of [time] on a ruler [width] wide, kept inside the canvas.
+double _xOf(TimelineWindow window, Duration time, double width) =>
+    (window.fractionOf(time) * width).clamp(0.5, width - 0.5);
+
+class _TickPainter extends CustomPainter {
+  const _TickPainter(this.window, this.rate, this.ink);
+
+  final TimelineWindow window;
+  final FrameRate rate;
+  final Color ink;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (window.span <= Duration.zero) return;
+    final paint = Paint()
+      ..color = ink
+      ..strokeWidth = 1;
+    void tick(double x, double length) => canvas.drawLine(
+      Offset(x, size.height - length),
+      Offset(x, size.height),
+      paint,
+    );
+
+    tick(0.5, RulerMetrics.majorTick);
+    for (final mark in Ruler.ticks(window, width: size.width, rate: rate)) {
+      tick(
+        _xOf(window, mark.time, size.width),
+        mark.major ? RulerMetrics.majorTick : RulerMetrics.minorTick,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_TickPainter old) =>
+      old.window != window || old.rate != rate || old.ink != ink;
+}
+
+class _LabelPainter extends CustomPainter {
+  _LabelPainter({
     required this.window,
     required this.rate,
-    required this.ink,
+    required this.paper,
+    required this.metrics,
     required this.guideStyle,
     required this.labelStyle,
     required this.textDirection,
@@ -53,58 +131,50 @@ class _RulerPainter extends CustomPainter {
 
   final TimelineWindow window;
   final FrameRate rate;
-  final Color ink;
+  final Color paper;
+  final RulerMetrics metrics;
   final TextStyle guideStyle;
   final TextStyle labelStyle;
   final TextDirection textDirection;
   final TextScaler textScaler;
 
-  static const _minorTick = 5.0;
-  static const _majorTick = 14.0;
-  static const _textInset = 3.0;
-  static const _textTop = 5.0;
+  static const _inset = 3.0;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (window.span <= Duration.zero) return;
-    final tick = Paint()
-      ..color = ink
-      ..strokeWidth = 1;
+    final top = RulerMetrics.labelTop;
 
     for (final mark in Ruler.ticks(window, width: size.width, rate: rate)) {
-      // Keep the last tick inside the canvas.
-      final x = (window.fractionOf(mark.time) * size.width).clamp(
-        0.5,
-        size.width - 0.5,
-      );
-      final length = mark.major ? _majorTick : _minorTick;
-      canvas.drawLine(
-        Offset(x, size.height - length),
-        Offset(x, size.height),
-        tick,
-      );
-      if (mark.labelled) {
-        _text(Timecode.full(mark.time, rate), labelStyle)
-          ..paint(canvas, Offset(x + _textInset, _textTop + 1))
-          ..dispose();
-      }
+      if (!mark.labelled) continue;
+      final x = _xOf(window, mark.time, size.width) + _inset;
+      _label(canvas, Timecode.full(mark.time, rate), labelStyle, x, top);
     }
-    canvas.drawLine(
-      Offset(0.5, size.height - _majorTick),
-      Offset(0.5, size.height),
-      tick,
-    );
+    _label(canvas, Timecode.full(window.start, rate), guideStyle, 0, top);
+    final end = _layout(Timecode.full(window.end, rate), guideStyle);
+    _paintOnPaper(canvas, end, Offset(size.width - end.width, top));
+  }
 
-    _text(Timecode.full(window.start, rate), guideStyle)
-      ..paint(canvas, const Offset(_textInset, _textTop))
-      ..dispose();
-    final end = _text(Timecode.full(window.end, rate), guideStyle);
-    end
-      ..paint(canvas, Offset(size.width - end.width, _textTop))
+  void _label(
+    Canvas canvas,
+    String value,
+    TextStyle style,
+    double x,
+    double y,
+  ) => _paintOnPaper(canvas, _layout(value, style), Offset(x, y));
+
+  /// Paints [text] on a paper knockout that clears whatever runs beneath.
+  void _paintOnPaper(Canvas canvas, TextPainter text, Offset at) {
+    canvas.drawRect(
+      Rect.fromLTWH(at.dx - 2, at.dy, text.width + 4, metrics.labelLine),
+      Paint()..color = paper,
+    );
+    text
+      ..paint(canvas, at + Offset(0, (metrics.labelLine - text.height) / 2))
       ..dispose();
   }
 
-  TextPainter _text(String value, TextStyle style) => TextPainter(
+  TextPainter _layout(String value, TextStyle style) => TextPainter(
     text: TextSpan(text: value, style: style),
     textDirection: textDirection,
     textScaler: textScaler,
@@ -112,10 +182,11 @@ class _RulerPainter extends CustomPainter {
   )..layout();
 
   @override
-  bool shouldRepaint(_RulerPainter old) =>
+  bool shouldRepaint(_LabelPainter old) =>
       old.window != window ||
       old.rate != rate ||
-      old.ink != ink ||
+      old.paper != paper ||
+      old.metrics.labelLine != metrics.labelLine ||
       old.guideStyle != guideStyle ||
       old.labelStyle != labelStyle ||
       old.textScaler != textScaler;
