@@ -10,6 +10,9 @@ final class FakePreviewPlayer implements PreviewPlayer {
   /// Calls in order: `open <path>`, `seek <µs>`, `play`, `pause`.
   final calls = <String>[];
 
+  /// Paths [open] refuses with [UnplayableMedia].
+  final unplayable = <String>{};
+
   /// While set, each seek waits until [releaseSeek] is called.
   bool holdSeeks = false;
   final _heldSeeks = <Completer<void>>[];
@@ -29,7 +32,10 @@ final class FakePreviewPlayer implements PreviewPlayer {
   void releaseSeek() => _heldSeeks.removeAt(0).complete();
 
   @override
-  Future<void> open(String path) async => calls.add('open $path');
+  Future<void> open(String path) async {
+    calls.add('open $path');
+    if (unplayable.contains(path)) throw UnplayableMedia(path);
+  }
 
   @override
   Future<void> seek(Duration position) {

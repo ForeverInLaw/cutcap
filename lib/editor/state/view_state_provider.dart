@@ -7,6 +7,7 @@ import '../../domain/editor_session.dart';
 import '../editor_view_state.dart';
 import '../ruler.dart';
 import 'editor_state.dart';
+import 'export_notifier.dart';
 
 /// The track as the screen draws it. Rebuilt only when the edit, the
 /// selection or the marked clip change, not as the playhead moves.
@@ -30,8 +31,11 @@ final clipViewsProvider = Provider<List<ClipView>>((ref) {
   return List.unmodifiable(list.clips.map(view));
 });
 
-/// Everything [EditorViewState] needs, each piece read narrowly.
+/// Everything [EditorViewState] needs, each piece read narrowly. While an
+/// export runs every edit is off (see [EditorController]).
 final editorViewStateProvider = Provider<EditorViewState>((ref) {
+  final export = ref.watch(exportProvider);
+  final editable = export is! ExportRunning;
   final list = ref.watch(sessionProvider.select((s) => s.editList));
   final canUndo = ref.watch(sessionProvider.select((s) => s.canUndo));
   final canRedo = ref.watch(sessionProvider.select((s) => s.canRedo));
@@ -56,12 +60,15 @@ final editorViewStateProvider = Provider<EditorViewState>((ref) {
     isPlaying: ref.watch(
       transportProvider.select((transport) => transport != Transport.paused),
     ),
-    canSplit: canSplit,
-    canDelete: selected != null && list.clips.any((c) => c.id == selected),
-    canUndo: canUndo,
-    canRedo: canRedo,
-    canClear: list.clips.isNotEmpty,
-    canExport: list.clips.isNotEmpty,
+    canSplit: editable && canSplit,
+    canDelete:
+        editable && selected != null && list.clips.any((c) => c.id == selected),
+    canUndo: editable && canUndo,
+    canRedo: editable && canRedo,
+    canClear: editable && list.clips.isNotEmpty,
+    canAdd: editable,
+    canExport: editable && list.clips.isNotEmpty,
+    export: export,
     unreadableFiles: ref.watch(importProblemsProvider),
     isTrimming: timelineEnd != null,
   );

@@ -33,6 +33,7 @@ void main() {
   late SequencePlayback playback;
   late List<Duration> positions;
   late int ended;
+  late List<String> unplayable;
 
   // A[0, 4 s) at 30 fps, then B[0, 3 s) at 25 fps from sequence time 4 s.
   final ab = const EditorSession().addSources([_a, _b]).editList;
@@ -41,16 +42,29 @@ void main() {
     player = FakePreviewPlayer();
     positions = [];
     ended = 0;
+    unplayable = [];
     playback = SequencePlayback(
       player,
       onPosition: positions.add,
       onEnded: () => ended++,
+      onUnplayable: unplayable.add,
     );
   });
 
   tearDown(() => playback.dispose());
 
   group('show', () {
+    test('reports a file the player cannot open and goes on', () async {
+      player.unplayable.add('b.mp4');
+      playback.show(ab, _ms(4500));
+      await pumpEventQueue();
+      expect(unplayable, ['b.mp4']);
+
+      playback.show(ab, const Duration(seconds: 1));
+      await pumpEventQueue();
+      expect(player.calls.last, 'seek 983334');
+    });
+
     test('opens the source under the time and seeks to its frame', () async {
       playback.show(ab, const Duration(seconds: 1));
       await pumpEventQueue();
