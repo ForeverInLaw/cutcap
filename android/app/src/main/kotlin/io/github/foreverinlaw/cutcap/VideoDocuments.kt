@@ -12,6 +12,7 @@ import android.os.Looper
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.util.Log
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.Executors
@@ -22,7 +23,8 @@ import java.util.concurrent.Executors
  * videos so a restored session can still open them (ADR 0003).
  *
  * Picked videos come from `ACTION_OPEN_DOCUMENT`, whose grants are taken as
- * persistable. A shared video's grant is usually temporary; it is kept by
+ * persistable. Shares pass [ShareFilter] first, so a sender cannot make
+ * cutcap read what only cutcap may. A shared video's grant is usually temporary; it is kept by
  * persisting it when the sender allowed that, else by swapping in the same
  * video's MediaStore URI, which the video read permission keeps readable.
  *
@@ -227,5 +229,6 @@ class VideoDocuments(
     private companion object {
         const val PICK_REQUEST = 0x6375
         const val PERMISSION_REQUEST = 0x6376
+        const val TAG = "cutcap"
     }
 }

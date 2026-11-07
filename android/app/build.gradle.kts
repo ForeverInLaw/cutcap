@@ -43,3 +43,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Kotlin unit tests (`./gradlew :app:testDebugUnitTest`), run in CI.
+    testImplementation("junit:junit:4.13.2")
+}
