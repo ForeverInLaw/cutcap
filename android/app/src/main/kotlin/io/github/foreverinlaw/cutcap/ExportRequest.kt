@@ -50,10 +50,10 @@ data class ExportRequest(
                 frameRateDenominator = int("frameRateDenominator"),
                 videoBitRate = int("videoBitRate"),
                 clips = clips,
-            ).also(ExportRequest::check)
+            ).also(::requireValid)
         }
 
-        private fun check(request: ExportRequest) = with(request) {
+        private fun requireValid(request: ExportRequest) = with(request) {
             require(clips.isNotEmpty()) { "no clips" }
             require(width > 0 && height > 0 && width % 2 == 0 && height % 2 == 0) {
                 "size ${width}x$height is not positive and even"
