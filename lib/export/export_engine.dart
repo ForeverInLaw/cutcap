@@ -11,8 +11,10 @@ final class ExportJob {
 
   final EditList editList;
 
-  /// Where the mp4 goes. An existing file there is replaced, but only once
-  /// the export has succeeded.
+  /// Where the mp4 goes. On Windows a file path: an existing file there is
+  /// replaced, but only once the export has succeeded. On Android the file
+  /// name in Movies/cutcap, where a name already taken gets a number
+  /// instead (MediaStore picks it).
   final String outputPath;
 
   /// Sources whose file is gone. Their clips are left out of the export.
@@ -38,9 +40,14 @@ sealed class ExportOutcome extends ExportEvent {
 
 /// The file at [outputPath] is complete.
 final class ExportSucceeded extends ExportOutcome {
-  const ExportSucceeded(this.outputPath);
+  const ExportSucceeded(this.outputPath, {this.displayName});
 
+  /// The file path, or on Android the video's `content://` URI.
   final String outputPath;
+
+  /// The name the system shows for the video when [outputPath] is no file
+  /// path (Android).
+  final String? displayName;
 }
 
 /// Nothing was written. [reason] is meant for the person exporting, e.g.
@@ -50,6 +57,11 @@ final class ExportFailed extends ExportOutcome {
 
   final String reason;
 }
+
+/// What every engine reports when no clip is left to export.
+const nothingToExport = ExportFailed(
+  'There is nothing to export: the source files of all clips are missing.',
+);
 
 /// Stopped by [ExportEngine.cancel]; nothing was written.
 final class ExportCancelled extends ExportOutcome {

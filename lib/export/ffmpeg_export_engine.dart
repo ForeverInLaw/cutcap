@@ -35,10 +35,7 @@ final class FfmpegExportEngine implements ExportEngine {
         missingSources: job.missingSources,
       );
       if (plan == null) {
-        yield const ExportFailed(
-          'There is nothing to export: the source files of all clips are '
-          'missing.',
-        );
+        yield nothingToExport;
         return;
       }
       final encoder = await _encoders.encoder();

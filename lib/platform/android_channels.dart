@@ -11,4 +11,14 @@ abstract final class AndroidChannels {
   static const documents = MethodChannel(
     'io.github.foreverinlaw.cutcap/documents',
   );
+
+  /// Cancelling the running export, and opening or sharing a finished one
+  /// (`ExportChannel.kt`).
+  static const export = MethodChannel('io.github.foreverinlaw.cutcap/export');
+
+  /// One export per listen: the request goes with the listen, its events
+  /// come back (`ExportChannel.kt`).
+  static const exportRun = EventChannel(
+    'io.github.foreverinlaw.cutcap/export/run',
+  );
 }
