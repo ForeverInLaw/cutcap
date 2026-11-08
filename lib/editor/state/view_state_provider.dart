@@ -63,7 +63,7 @@ final editorViewStateProvider = Provider<EditorViewState>((ref) {
       total: list.duration,
       timelineEnd: timelineEnd,
     ),
-    frameRate: first?.frameRate ?? const FrameRate(30, 1),
+    frameRate: first?.frameRate ?? EditorViewState.emptyTrackFrameRate,
     outputSize: first == null ? null : _displaySize(first),
     isPlaying: ref.watch(
       transportProvider.select((transport) => transport != Transport.paused),

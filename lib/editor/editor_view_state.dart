@@ -12,7 +12,7 @@ final class EditorViewState {
     this.clips = const [],
     this.position = Duration.zero,
     this.window,
-    this.frameRate = const FrameRate(30, 1),
+    this.frameRate = emptyTrackFrameRate,
     this.outputSize,
     this.isPlaying = false,
     this.canSplit = false,
@@ -38,8 +38,14 @@ final class EditorViewState {
   /// The part of the sequence the track shows; the whole sequence when null.
   final TimelineWindow? window;
 
-  /// Output frame rate (the first clip's), used for every timecode.
+  /// Output frame rate (the first clip's), used for every timecode;
+  /// [emptyTrackFrameRate] while the track is empty.
   final FrameRate frameRate;
+
+  /// The rate an empty track's timecode and ruler count in. Nothing is
+  /// timed in it (every time on screen is zero then); it only gives the
+  /// zero a frame field.
+  static const emptyTrackFrameRate = FrameRate(30, 1);
 
   /// Output frame size in pixels (the first clip's), for the status line.
   final Size? outputSize;
