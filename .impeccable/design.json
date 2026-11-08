@@ -25,6 +25,7 @@
       "body-small": { "displayName": "Body Small", "purpose": "Status summary, export detail line, tooltips." },
       "label": { "displayName": "Label", "purpose": "Button labels (700 on filled buttons) and export messages." },
       "label-guide": { "displayName": "Label Guide", "purpose": "Ruler guide words naming the first and last time in view; tick labels at 400 in ink-secondary." },
+      "label-chip": { "displayName": "Label Chip", "purpose": "\"File not found\" in the missing-file chip." },
       "label-small": { "displayName": "Label Small", "purpose": "Clip names; clip lengths at 400 in ink-secondary." }
     },
     "shadows": [],

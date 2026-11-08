@@ -76,6 +76,11 @@ typography:
     fontWeight: 700
     lineHeight: 1.2
     fontFeature: "\"tnum\""
+  label-chip:
+    fontFamily: "Golos Text"
+    fontSize: "12px"
+    fontWeight: 500
+    lineHeight: 1.2
   label-small:
     fontFamily: "Golos Text"
     fontSize: "11px"
@@ -149,6 +154,7 @@ components:
     backgroundColor: "{colors.workspace}"
     textColor: "{colors.ink}"
     rounded: "{rounded.none}"
+    typography: "{typography.label-chip}"
     padding: "4px 12px"
   status-band:
     textColor: "{colors.ink-secondary}"
@@ -225,6 +231,7 @@ State overlays derive from ink by opacity, not new hues: hover 6 %, focus 10 %, 
 - **Body Small** (400, 12 px, 1.3): the status summary, export detail lines, tooltips.
 - **Label** (500, 14 px, 1.2): button labels (700 on filled buttons) and export messages.
 - **Label Guide** (700, 12 px, 1.2, tabular): ruler guide words naming the first and last time in view; tick labels use the same size at 400 in ink-secondary.
+- **Label Chip** (500, 12 px, 1.2): "File not found" in the missing-file chip.
 - **Label Small** (500, 11 px, 1.2, +0.4 px): clip names; clip lengths at 400 in ink-secondary.
 
 ### Named Rules
@@ -305,7 +312,7 @@ Under a hairline ink rule, 64 px minimum on desktop. At rest (desktop only) it i
 - **Export done:** ink check icon (20 px), message naming the file, filled Open, outlined Share (when sharing exists), plain close. Announced as a live region.
 - **Export failed:** ink error-outline icon (20 px), the reason in words, then in 12 px ink-secondary a line saying the edit is intact and the exporter's own technical message (ffmpeg's last lines, untranslated), filled Retry, plain close. No red.
 - **Notices:** files that could not be added, a saved edit that could not be read at launch (kept aside under a new name) and an autosave that failed are told in the status band like an export failure: ink error-outline icon, the message in words, plain close. A failed autosave also clears itself once a later save works.
-- **File not found clip:** the film area becomes 1 px ink diagonal hatching (45°, 7 px pitch) inside a 1 px ink border, with a centred graphite chip holding a link-off icon (14 px) and "File not found" in 12 px medium; when the clip is too narrow the chip shows the icon alone. The name and length stay above.
+- **File not found clip:** the film area becomes 1 px ink diagonal hatching (45°, 7 px pitch) inside a 1 px ink border, with a centred graphite chip holding a link-off icon (14 px) and "File not found" in Label Chip; when the clip is too narrow the chip shows the icon alone. The name and length stay above.
 - **Selected:** a 2 px ink frame around the film, fading in at 150 ms.
 - **Just edited:** a 3 px signal-red line along the film's base, fading in at 150 ms; it can coexist with the selected frame.
 - **Disabled controls:** 38 % ink content, 20 % ink outline; they keep their place so the row never reflows.
