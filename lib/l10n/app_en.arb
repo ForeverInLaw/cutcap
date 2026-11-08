@@ -138,7 +138,7 @@
   },
   "exportFailed": "Export failed",
   "@exportFailed": {
-    "description": "Headline when ffmpeg failed; its own technical message is shown under it."
+    "description": "Headline when the encoder (ffmpeg or Media3) ran and failed; its own technical message is shown under it."
   },
   "exportNoFfmpeg": "Could not find ffmpeg, which cutcap exports with",
   "@exportNoFfmpeg": {
@@ -147,6 +147,34 @@
   "exportTargetIsSource": "Choose another file: this one is a clip in your edit",
   "@exportTargetIsSource": {
     "description": "Headline when the user chose to save the export over one of the videos the edit is cut from. Try again asks for another file."
+  },
+  "exportNothingToExport": "Nothing to export: the files of all clips are missing",
+  "@exportNothingToExport": {
+    "description": "Headline when every clip's source file was moved or deleted, so the export has nothing to render."
+  },
+  "exportNoEncoder": "This device has no working H.264 encoder",
+  "@exportNoEncoder": {
+    "description": "Headline when no H.264 video encoder (hardware or software) works on the device."
+  },
+  "exportCannotStart": "The export could not be started",
+  "@exportCannotStart": {
+    "description": "Headline when the exporter (ffmpeg on Windows, the export service on Android) did not start; its own message is shown under it."
+  },
+  "exportCannotWrite": "The video could not be saved",
+  "@exportCannotWrite": {
+    "description": "Headline when the exported file could not be written (Windows) or saved to Movies/cutcap (Android)."
+  },
+  "exportBusy": "Another export is still running",
+  "@exportBusy": {
+    "description": "Headline when an earlier export (started before the app was reopened) has not finished yet."
+  },
+  "exportStopped": "Android stopped the export",
+  "@exportStopped": {
+    "description": "Headline when Android ended the export service before the export was done."
+  },
+  "exportTimeLimit": "Android stopped the export: today's time limit for exports ran out",
+  "@exportTimeLimit": {
+    "description": "Headline when Android 15+ stopped the export because the app used up its daily time for media processing."
   },
   "editIntact": "Your edit is intact.",
   "@editIntact": {

@@ -140,12 +140,13 @@ void main() {
     ]);
   });
 
-  test('reports a failure with its reason', () async {
+  test('reports a failure with its kind and detail', () async {
     platformRuns((events) {
       events
         ..success({
           'event': 'failed',
-          'reason': 'ERROR_CODE_DECODING_FAILED: no decoder',
+          'kind': 'cannotWrite',
+          'detail': 'ERROR_CODE_IO_NO_PERMISSION: denied',
         })
         ..endOfStream();
     });
@@ -153,15 +154,31 @@ void main() {
     final events = await AndroidExportEngine().export(job()).toList();
 
     expect(events, [
-      isA<ExportFailed>().having(
-        (e) => e.reason,
-        'reason',
-        'ERROR_CODE_DECODING_FAILED: no decoder',
-      ),
+      isA<ExportFailed>()
+          .having((e) => e.kind, 'kind', ExportFailure.cannotWrite)
+          .having(
+            (e) => e.detail,
+            'detail',
+            'ERROR_CODE_IO_NO_PERMISSION: denied',
+          ),
     ]);
   });
 
-  test('a refused start is a failure with the platform reason', () async {
+  test('a failure of a kind it does not know is a plain failure', () async {
+    platformRuns((events) {
+      events
+        ..success({'event': 'failed', 'kind': 'newKind', 'detail': null})
+        ..endOfStream();
+    });
+
+    final events = await AndroidExportEngine().export(job()).toList();
+
+    expect(events, [
+      isA<ExportFailed>().having((e) => e.kind, 'kind', ExportFailure.failed),
+    ]);
+  });
+
+  test('a start refused as busy says another export runs', () async {
     platformRuns((events) {
       events
         ..error(code: 'busy', message: 'An export is already running.')
@@ -171,11 +188,23 @@ void main() {
     final events = await AndroidExportEngine().export(job()).toList();
 
     expect(events, [
-      isA<ExportFailed>().having(
-        (e) => e.reason,
-        'reason',
-        'An export is already running.',
-      ),
+      isA<ExportFailed>().having((e) => e.kind, 'kind', ExportFailure.busy),
+    ]);
+  });
+
+  test('any other refused start did not start, with the reason', () async {
+    platformRuns((events) {
+      events
+        ..error(code: 'not_started', message: 'app is in the background')
+        ..endOfStream();
+    });
+
+    final events = await AndroidExportEngine().export(job()).toList();
+
+    expect(events, [
+      isA<ExportFailed>()
+          .having((e) => e.kind, 'kind', ExportFailure.cannotStart)
+          .having((e) => e.detail, 'detail', 'app is in the background'),
     ]);
   });
 
@@ -191,7 +220,16 @@ void main() {
         )
         .toList();
 
-    expect(events, completion([isA<ExportFailed>()]));
+    expect(
+      events,
+      completion([
+        isA<ExportFailed>().having(
+          (e) => e.kind,
+          'kind',
+          ExportFailure.nothingToExport,
+        ),
+      ]),
+    );
     expect(requests, isEmpty);
   });
 

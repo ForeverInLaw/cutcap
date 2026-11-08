@@ -101,6 +101,13 @@ class StatusArea extends StatelessWidget {
         message: switch (problem) {
           ExportProblem.exporterMissing => l10n.exportNoFfmpeg,
           ExportProblem.targetIsSource => l10n.exportTargetIsSource,
+          ExportProblem.nothingToExport => l10n.exportNothingToExport,
+          ExportProblem.noEncoder => l10n.exportNoEncoder,
+          ExportProblem.cannotStart => l10n.exportCannotStart,
+          ExportProblem.cannotWrite => l10n.exportCannotWrite,
+          ExportProblem.busy => l10n.exportBusy,
+          ExportProblem.stopped => l10n.exportStopped,
+          ExportProblem.timeLimit => l10n.exportTimeLimit,
           ExportProblem.failed => l10n.exportFailed,
         },
         detail: [l10n.editIntact, ?detail].join('\n'),

@@ -41,7 +41,13 @@ void main() {
         )
         .toList();
 
-    expect(events, [isA<ExportFailed>()]);
+    expect(events, [
+      isA<ExportFailed>().having(
+        (failed) => failed.kind,
+        'kind',
+        ExportFailure.nothingToExport,
+      ),
+    ]);
   });
 
   test('fails with the path when ffmpeg cannot be started', () async {
@@ -52,11 +58,13 @@ void main() {
         .toList();
 
     expect(events, [
-      isA<ExportFailed>().having(
-        (failed) => failed.reason,
-        'reason',
-        contains('Z:/nowhere/ffmpeg.exe'),
-      ),
+      isA<ExportFailed>()
+          .having((failed) => failed.kind, 'kind', ExportFailure.cannotStart)
+          .having(
+            (failed) => failed.detail,
+            'detail',
+            contains('Z:/nowhere/ffmpeg.exe'),
+          ),
     ]);
   });
 }

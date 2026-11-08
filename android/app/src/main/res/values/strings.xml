@@ -8,4 +8,8 @@
     <string name="export_saved">Saved to Movies/cutcap</string>
     <string name="export_failed">Export failed</string>
     <string name="export_edit_intact">Your edit is intact.</string>
+    <string name="export_cannot_start">The export could not be started.</string>
+    <string name="export_cannot_write">The video could not be saved to Movies/cutcap.</string>
+    <string name="export_stopped">Android stopped the export.</string>
+    <string name="export_time_limit">Android stopped the export: today\'s time limit for exports ran out.</string>
 </resources>

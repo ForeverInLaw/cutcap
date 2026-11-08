@@ -209,11 +209,9 @@ void main() {
 
       expect(
         events.single,
-        isA<ExportFailed>().having(
-          (failed) => failed.reason,
-          'reason',
-          isNotEmpty,
-        ),
+        isA<ExportFailed>()
+            .having((failed) => failed.kind, 'kind', ExportFailure.failed)
+            .having((failed) => failed.detail, 'detail', isNotEmpty),
       );
       expect(File(path).existsSync(), isFalse);
       expect(File('$path.part').existsSync(), isFalse);

@@ -40,7 +40,7 @@ class ExportChannel(private val activity: Activity) : MethodChannel.MethodCallHa
             ExportHub.start(activity, request)
         } catch (error: IllegalStateException) {
             detach()
-            refuse(events, "not_started", "Android did not start the export: ${error.message}")
+            refuse(events, "not_started", error.message ?: error.javaClass.simpleName)
         }
     }
 

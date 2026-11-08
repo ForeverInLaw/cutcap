@@ -172,9 +172,9 @@ final class ExportNotifier extends Notifier<ExportStatus> {
             engine.ExportProgress(:final fraction) => ExportRunning(fraction),
             engine.ExportSucceeded(:final outputPath, :final displayName) =>
               _done(outputPath, displayName),
-            engine.ExportFailed(:final reason) => ExportFailed(
-              ExportProblem.failed,
-              detail: reason,
+            engine.ExportFailed(:final kind, :final detail) => ExportFailed(
+              _problemOf(kind),
+              detail: detail,
             ),
             engine.ExportCancelled() => const ExportIdle(),
           },
@@ -184,6 +184,18 @@ final class ExportNotifier extends Notifier<ExportStatus> {
           onDone: () => _run = null,
         );
   }
+
+  /// How the status band tells each engine failure.
+  static ExportProblem _problemOf(engine.ExportFailure kind) => switch (kind) {
+    engine.ExportFailure.nothingToExport => ExportProblem.nothingToExport,
+    engine.ExportFailure.noEncoder => ExportProblem.noEncoder,
+    engine.ExportFailure.cannotStart => ExportProblem.cannotStart,
+    engine.ExportFailure.cannotWrite => ExportProblem.cannotWrite,
+    engine.ExportFailure.busy => ExportProblem.busy,
+    engine.ExportFailure.stopped => ExportProblem.stopped,
+    engine.ExportFailure.timeLimit => ExportProblem.timeLimit,
+    engine.ExportFailure.failed => ExportProblem.failed,
+  };
 
   ExportDone _done(String output, String? displayName) {
     _output = output;

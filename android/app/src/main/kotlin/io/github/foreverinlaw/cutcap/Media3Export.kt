@@ -69,7 +69,13 @@ class Media3Export(
                 onEnd(ExportEvent.Succeeded(output.path, null))
 
             override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) =
-                onEnd(ExportEvent.Failed.of(exportException.errorCodeName, exportException))
+                onEnd(
+                    ExportEvent.Failed.of(
+                        ExportEvent.Failed.Kind.FAILED,
+                        exportException,
+                        code = exportException.errorCodeName,
+                    ),
+                )
         })
         .build()
 

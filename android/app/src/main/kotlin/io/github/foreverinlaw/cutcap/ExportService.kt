@@ -61,7 +61,7 @@ class ExportService : Service() {
                 .also(Media3Export::start)
         } catch (error: RuntimeException) {
             // E.g. a source URI Media3 cannot open at all.
-            end(ExportEvent.Failed.of("Media3 did not start", error))
+            end(ExportEvent.Failed.of(ExportEvent.Failed.Kind.CANNOT_START, error))
             return START_NOT_STICKY
         }
         main.post(::poll)
@@ -80,7 +80,7 @@ class ExportService : Service() {
     override fun onTimeout(startId: Int, fgsType: Int) {
         export?.cancel()
         output.delete()
-        end(ExportEvent.Failed("Android stopped the export: the time limit for exports ran out."))
+        end(ExportEvent.Failed(ExportEvent.Failed.Kind.TIME_LIMIT))
     }
 
     override fun onDestroy() {
@@ -88,7 +88,7 @@ class ExportService : Service() {
         if (export != null) {
             export?.cancel()
             output.delete()
-            end(ExportEvent.Failed("Android stopped the export."))
+            end(ExportEvent.Failed(ExportEvent.Failed.Kind.STOPPED))
         }
         main.removeCallbacksAndMessages(null)
         io.shutdown()
@@ -120,7 +120,7 @@ class ExportService : Service() {
                 val (uri, name) = MoviesFolder(this).add(output, request.name)
                 ExportEvent.Succeeded(uri.toString(), name)
             } catch (error: Exception) {
-                ExportEvent.Failed.of("Could not save the video to ${MoviesFolder.RELATIVE_PATH}", error)
+                ExportEvent.Failed.of(ExportEvent.Failed.Kind.CANNOT_WRITE, error)
             } finally {
                 output.delete()
             }
@@ -136,7 +136,7 @@ class ExportService : Service() {
         main.removeCallbacksAndMessages(null)
         when (outcome) {
             is ExportEvent.Succeeded -> notifications.saved(Uri.parse(outcome.uri), outcome.name)
-            is ExportEvent.Failed -> notifications.failed(outcome.reason)
+            is ExportEvent.Failed -> notifications.failed(outcome)
             ExportEvent.Cancelled -> Unit
         }
         ExportHub.report(outcome)

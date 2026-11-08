@@ -163,10 +163,15 @@ void main() {
           .having((s) => s.problem, 'problem', problem)
           .having((s) => s.detail, 'detail', detail);
 
-  test('reports a failure with the engine reason as its detail', () async {
+  test('reports a failure with the engine output as its detail', () async {
     saveAnswers.add('D:/out/final.mp4');
     await exporter().start();
-    await fake.finish(const engine.ExportFailed('Conversion failed!'));
+    await fake.finish(
+      const engine.ExportFailed(
+        engine.ExportFailure.failed,
+        detail: 'Conversion failed!',
+      ),
+    );
     await pumpEventQueue();
 
     expect(
@@ -175,10 +180,23 @@ void main() {
     );
   });
 
+  test('tells a known failure by its kind', () async {
+    saveAnswers.add('D:/out/final.mp4');
+    await exporter().start();
+    await fake.finish(
+      const engine.ExportFailed(engine.ExportFailure.noEncoder),
+    );
+    await pumpEventQueue();
+
+    expect(status(), failedWith(ExportProblem.noEncoder));
+  });
+
   test('retries a failed export to the same file without asking', () async {
     saveAnswers.add('D:/out/final.mp4');
     await exporter().start();
-    await fake.finish(const engine.ExportFailed('disk full'));
+    await fake.finish(
+      const engine.ExportFailed(engine.ExportFailure.cannotWrite),
+    );
     await pumpEventQueue();
 
     await exporter().retry();

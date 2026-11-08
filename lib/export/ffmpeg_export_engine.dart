@@ -44,7 +44,7 @@ final class FfmpegExportEngine implements ExportEngine {
         return;
       }
       if (encoder == null) {
-        yield ExportFailed('No H.264 encoder works with $_ffmpegPath.');
+        yield const ExportFailed(ExportFailure.noEncoder);
         return;
       }
 
@@ -67,7 +67,10 @@ final class FfmpegExportEngine implements ExportEngine {
       if (exitCode != 0) {
         final reason = await errors;
         yield ExportFailed(
-          reason.isEmpty ? 'ffmpeg exited with code $exitCode.' : reason,
+          ExportFailure.failed,
+          detail: reason.isEmpty
+              ? 'ffmpeg exited with code $exitCode.'
+              : reason,
         );
         return;
       }
@@ -75,9 +78,15 @@ final class FfmpegExportEngine implements ExportEngine {
       succeeded = true;
       yield ExportSucceeded(job.outputPath);
     } on ProcessException catch (error) {
-      yield ExportFailed('Could not run ${error.executable}: ${error.message}');
+      yield ExportFailed(
+        ExportFailure.cannotStart,
+        detail: '${error.executable}: ${error.message}',
+      );
     } on FileSystemException catch (error) {
-      yield ExportFailed('Could not write ${job.outputPath}: ${error.message}');
+      yield ExportFailed(
+        ExportFailure.cannotWrite,
+        detail: '${job.outputPath}: ${error.message}',
+      );
     } finally {
       // Also reached when the listener cancels mid-export. Wait for ffmpeg
       // to exit so Windows releases the partial file before it is deleted.

@@ -72,14 +72,22 @@ class ExportNotifications(private val context: Context) {
         )
     }
 
-    /** Nothing was saved; [reason] goes in the expanded text. */
-    fun failed(reason: String) {
+    /** Nothing was saved; the expanded text says why, then [failure]'s own detail. */
+    fun failed(failure: ExportEvent.Failed) {
         val intact = context.getString(R.string.export_edit_intact)
+        val why = when (failure.kind) {
+            ExportEvent.Failed.Kind.CANNOT_START -> R.string.export_cannot_start
+            ExportEvent.Failed.Kind.CANNOT_WRITE -> R.string.export_cannot_write
+            ExportEvent.Failed.Kind.STOPPED -> R.string.export_stopped
+            ExportEvent.Failed.Kind.TIME_LIMIT -> R.string.export_time_limit
+            ExportEvent.Failed.Kind.FAILED -> null
+        }?.let(context::getString)
+        val text = listOfNotNull(why, intact, failure.detail).joinToString("\n")
         post(
             builder()
                 .setContentTitle(context.getString(R.string.export_failed))
-                .setContentText(intact)
-                .setStyle(Notification.BigTextStyle().bigText("$intact\n$reason"))
+                .setContentText(why ?: intact)
+                .setStyle(Notification.BigTextStyle().bigText(text))
                 .setContentIntent(openApp())
                 .setAutoCancel(true)
                 .build(),

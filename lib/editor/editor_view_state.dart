@@ -152,8 +152,8 @@ final class ExportFailed extends ExportStatus {
   /// What went wrong, told to the user as a localized headline.
   final ExportProblem problem;
 
-  /// The exporter's own technical account (English, e.g. ffmpeg's last
-  /// lines), shown as secondary text under the headline.
+  /// The exporter's own technical account, untranslated (e.g. ffmpeg's
+  /// last lines), shown as secondary text under the headline.
   final String? detail;
 }
 
@@ -164,6 +164,27 @@ enum ExportProblem {
 
   /// The chosen file is one of the clips' sources.
   targetIsSource,
+
+  /// The source files of all clips are missing.
+  nothingToExport,
+
+  /// No H.264 encoder works on this device.
+  noEncoder,
+
+  /// The exporter did not start.
+  cannotStart,
+
+  /// The output could not be written or saved.
+  cannotWrite,
+
+  /// Another export is still running.
+  busy,
+
+  /// Android stopped the export before it was done.
+  stopped,
+
+  /// Android's daily time limit for exports ran out.
+  timeLimit,
 
   /// The exporter ran and failed; [ExportFailed.detail] says how.
   failed,

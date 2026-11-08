@@ -55,13 +55,7 @@ final class AndroidExportEngine implements ExportEngine {
               },
               // The service refused to start, e.g. an export from before the
               // app was reopened still runs.
-              onError: (Object error) => end(
-                ExportFailed(
-                  error is PlatformException
-                      ? error.message ?? error.code
-                      : '$error',
-                ),
-              ),
+              onError: (Object error) => end(_refused(error)),
               onDone: end,
             );
       },
@@ -112,8 +106,29 @@ final class AndroidExportEngine implements ExportEngine {
       'name': final String? name,
     } =>
       ExportSucceeded(uri, displayName: name),
-    {'event': 'failed', 'reason': final String reason} => ExportFailed(reason),
+    {
+      'event': 'failed',
+      'kind': final String kind,
+      'detail': final String? detail,
+    } =>
+      ExportFailed(
+        ExportFailure.values.asNameMap()[kind] ?? ExportFailure.failed,
+        detail: detail,
+      ),
     {'event': 'cancelled'} => const ExportCancelled(),
-    _ => ExportFailed('Unexpected export event: $message'),
+    _ => ExportFailed(
+      ExportFailure.failed,
+      detail: 'Unexpected export event: $message',
+    ),
+  };
+
+  /// Why `ExportChannel.onListen` (Kotlin) refused to start.
+  static ExportFailed _refused(Object error) => switch (error) {
+    PlatformException(code: 'busy') => const ExportFailed(ExportFailure.busy),
+    PlatformException(:final message, :final code) => ExportFailed(
+      ExportFailure.cannotStart,
+      detail: message ?? code,
+    ),
+    _ => ExportFailed(ExportFailure.cannotStart, detail: '$error'),
   };
 }
