@@ -6,8 +6,7 @@ import 'package:media_kit/media_kit.dart';
 
 import 'app.dart';
 import 'editor/state/editor_state.dart';
-import 'platform/android_documents.dart';
-import 'platform/incoming_files.dart';
+import 'platform/platform_services.dart';
 
 /// [args] are the files Explorer's "Open with" (or a command line) hands
 /// the app; on Android the videos of the share that started it take their
@@ -15,12 +14,17 @@ import 'platform/incoming_files.dart';
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-  final launchFiles = Platform.isAndroid
-      ? await AndroidDocuments.launchShares()
-      : incomingFiles(args);
+  // The one place that asks which platform this is.
+  final services = Platform.isAndroid
+      ? PlatformServices.android()
+      : PlatformServices.desktop();
+  final launchFiles = await services.launchFiles(args);
   runApp(
     ProviderScope(
-      overrides: [launchFilesProvider.overrideWithValue(launchFiles)],
+      overrides: [
+        platformServicesProvider.overrideWithValue(services),
+        launchFilesProvider.overrideWithValue(launchFiles),
+      ],
       child: const CutcapApp(),
     ),
   );

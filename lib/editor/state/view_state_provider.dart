@@ -1,10 +1,10 @@
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/editor_session.dart';
 import '../editor_view_state.dart';
+import '../../platform/platform_services.dart';
 import '../ruler.dart';
 import 'editor_state.dart';
 import 'export_notifier.dart';
@@ -77,8 +77,7 @@ final editorViewStateProvider = Provider<EditorViewState>((ref) {
     canAdd: editable,
     canExport: editable && ref.watch(exportSourceProvider) != null,
     export: export,
-    // Drops from Explorer; Android has no desktop to drag from.
-    acceptsFileDrop: defaultTargetPlatform == TargetPlatform.windows,
+    acceptsFileDrop: ref.watch(platformServicesProvider).acceptsFileDrop,
     unreadableFiles: ref.watch(importProblemsProvider),
     sessionProblem: ref.watch(sessionProblemProvider),
     isTrimming: timelineEnd != null,

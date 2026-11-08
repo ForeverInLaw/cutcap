@@ -1,17 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../domain/editor_session.dart';
-import '../../media/android_media_probe.dart';
-import '../../media/ffprobe_media_probe.dart';
 import '../../media/media_probe.dart';
-import '../../platform/android_documents.dart';
+import '../../platform/platform_services.dart';
 import '../../player/media_kit_preview_player.dart';
 import '../../player/preview_player.dart';
 import '../../player/sequence_playback.dart';
@@ -66,9 +63,7 @@ final launchFilesProvider = Provider<List<String>>((ref) => const []);
 /// Whether a source file is still there (on Android, still readable by its
 /// URI); tests override it.
 final sourceExistsProvider = Provider<Future<bool> Function(String path)>(
-  (ref) => Platform.isAndroid
-      ? AndroidDocuments.exists
-      : (path) => File(path).exists(),
+  (ref) => ref.watch(platformServicesProvider).sourceExists,
 );
 
 /// What went wrong with the autosaved edit, until dismissed.
@@ -95,35 +90,19 @@ final previewPlayerProvider = Provider<PreviewPlayer>((ref) {
 /// Reads the facts of a video: ffprobe on desktop, the platform's media
 /// framework on Android.
 final mediaProbeProvider = Provider<MediaProbe>(
-  (ref) => Platform.isAndroid
-      ? const AndroidMediaProbe()
-      : const FfprobeMediaProbe(),
+  (ref) => ref.watch(platformServicesProvider).mediaProbe,
 );
 
-/// Asks the user for videos; paths (Android: content URIs) come back in the
-/// order the picker returns them. The Windows dialog returns them in its
-/// own (shell) order, not the order they were clicked in.
+/// Asks the user for videos (see [PlatformServices.pickVideos]).
 final videoPickerProvider = Provider<Future<List<String>> Function()>(
-  (ref) => Platform.isAndroid ? AndroidDocuments.pick : _pickVideos,
+  (ref) => ref.watch(platformServicesProvider).pickVideos,
 );
 
 /// Videos shared into the app, a batch per share (Android "Share →
 /// cutcap"); never emits on desktop.
 final sharedVideosProvider = Provider<Stream<List<String>>>(
-  (ref) =>
-      Platform.isAndroid ? AndroidDocuments.shared() : const Stream.empty(),
+  (ref) => ref.watch(platformServicesProvider).sharedVideos,
 );
-
-Future<List<String>> _pickVideos() async {
-  const videos = XTypeGroup(
-    label: 'video',
-    extensions: ['mp4', 'mov', 'm4v', 'mkv', 'webm', 'avi', '3gp'],
-    mimeTypes: ['video/*'],
-    uniformTypeIdentifiers: ['public.movie'],
-  );
-  final files = await openFiles(acceptedTypeGroups: const [videos]);
-  return [for (final file in files) file.path];
-}
 
 /// Drives [previewPlayerProvider] along the sequence and feeds the playhead
 /// back while playing.
