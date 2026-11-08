@@ -1,0 +1,81 @@
+import 'package:flutter/material.dart';
+
+import '../../l10n/app_localizations.dart';
+import '../../theme/cutcap_tokens.dart';
+import 'control_button.dart';
+import 'editor_controls.dart';
+
+/// The bar on the black preview field: the lowercase wordmark and the
+/// bar's controls, paper on black.
+///
+/// Desktop carries Clear track, Add video and Export; the phone carries
+/// Undo, Redo, Export and an overflow holding Clear track (adding happens
+/// from the add tile at the end of the track).
+class EditorTopBar extends StatelessWidget {
+  const EditorTopBar({
+    required this.controls,
+    this.showAddVideo = true,
+    super.key,
+  });
+
+  final EditorControls controls;
+
+  /// Off while the empty state shows its own Add video.
+  final bool showAddVideo;
+
+  /// Desktop height; the phone bar is 64 dp so its 48 dp targets keep
+  /// clear of the edges.
+  static const desktopHeight = 56.0;
+  static const _phoneHeight = 64.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final touch = controls.touch;
+    final space = CutcapTokens.space;
+    return SizedBox(
+      height: touch ? _phoneHeight : desktopHeight,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: touch ? space.l : space.xxl,
+          right: touch ? space.s : space.xxl,
+        ),
+        child: Row(
+          children: [
+            // The wordmark gives way first when large text crowds the bar;
+            // it scales down whole rather than wrapping.
+            Expanded(
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      AppLocalizations.of(context).appTitle,
+                      maxLines: 1,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: CutcapTokens.onPreview,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (touch) ...[
+              controls.undo(kind: ControlKind.plain),
+              controls.redo(kind: ControlKind.plain),
+              SizedBox(width: space.s),
+            ] else if (showAddVideo) ...[
+              controls.clear(),
+              SizedBox(width: space.s),
+              controls.addVideo(),
+              SizedBox(width: space.l),
+            ],
+            controls.export(),
+            if (touch) controls.more(),
+          ],
+        ),
+      ),
+    );
+  }
+}

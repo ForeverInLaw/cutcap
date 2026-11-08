@@ -1,0 +1,218 @@
+{
+  "@@locale": "en",
+  "appTitle": "cutcap",
+  "@appTitle": {
+    "description": "Application title shown in the window title bar, the task switcher and as the wordmark in the editor's top bar."
+  },
+  "addVideo": "Add video",
+  "@addVideo": {
+    "description": "Button that opens the file picker to append videos to the track."
+  },
+  "export": "Export",
+  "@export": {
+    "description": "Button that exports the sequence to an mp4 file."
+  },
+  "position": "Position",
+  "@position": {
+    "description": "Accessibility label of the playhead time readout."
+  },
+  "previousFrame": "Previous frame",
+  "@previousFrame": {
+    "description": "Button that steps the playhead one frame back."
+  },
+  "nextFrame": "Next frame",
+  "@nextFrame": {
+    "description": "Button that steps the playhead one frame forward."
+  },
+  "play": "Play",
+  "@play": {
+    "description": "Button that starts playback."
+  },
+  "pause": "Pause",
+  "@pause": {
+    "description": "Button that pauses playback."
+  },
+  "split": "Split",
+  "@split": {
+    "description": "Button that splits the clip under the playhead in two."
+  },
+  "deleteClip": "Delete",
+  "@deleteClip": {
+    "description": "Button that removes the selected clip; the following clips close the gap."
+  },
+  "undo": "Undo",
+  "@undo": {
+    "description": "Button that undoes the last edit."
+  },
+  "redo": "Redo",
+  "@redo": {
+    "description": "Button that redoes the last undone edit."
+  },
+  "withShortcut": "{action} ({shortcut})",
+  "@withShortcut": {
+    "description": "Desktop tooltip naming a control and its keyboard shortcut, e.g. 'Split (S)'.",
+    "placeholders": {
+      "action": {"type": "String"},
+      "shortcut": {"type": "String"}
+    }
+  },
+  "keySpace": "Space",
+  "@keySpace": {
+    "description": "Name of the space bar key in shortcut hints."
+  },
+  "keyDelete": "Delete",
+  "@keyDelete": {
+    "description": "Name of the Delete key in shortcut hints, as printed on the keyboard."
+  },
+  "preview": "Preview",
+  "@preview": {
+    "description": "Accessibility label of the video preview area."
+  },
+  "timeline": "Timeline",
+  "@timeline": {
+    "description": "Accessibility label of the ruler that moves the playhead."
+  },
+  "clipCount": "{count, plural, one{{count} clip} other{{count} clips}}",
+  "@clipCount": {
+    "description": "Number of clips in the status line.",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "framesPerSecond": "{rate} fps",
+  "@framesPerSecond": {
+    "description": "Output frame rate in the status line, e.g. '30 fps'.",
+    "placeholders": {
+      "rate": {"type": "String"}
+    }
+  },
+  "fileNotFound": "File not found",
+  "@fileNotFound": {
+    "description": "Shown on a clip whose source file was moved or deleted; the clip is kept but skipped at export."
+  },
+  "justEdited": "just edited",
+  "@justEdited": {
+    "description": "Accessibility hint on the clip changed by the last edit."
+  },
+  "emptyTitle": "Add a video to start cutting",
+  "@emptyTitle": {
+    "description": "Heading of the editor when the track has no clips."
+  },
+  "emptyBody": "Split, delete and reorder clips on one track, then export an mp4.",
+  "@emptyBody": {
+    "description": "Sentence under the empty-state heading explaining what the editor does."
+  },
+  "dropHint": "or drop files here",
+  "@dropHint": {
+    "description": "Desktop hint next to the Add video button in the empty state."
+  },
+  "exportProgress": "Exporting {percent}%",
+  "@exportProgress": {
+    "description": "Export progress in percent.",
+    "placeholders": {
+      "percent": {"type": "int"}
+    }
+  },
+  "cancelExport": "Cancel",
+  "@cancelExport": {
+    "description": "Button that stops a running export."
+  },
+  "exportDone": "Saved {fileName}",
+  "@exportDone": {
+    "description": "Shown when the export finished.",
+    "placeholders": {
+      "fileName": {"type": "String"}
+    }
+  },
+  "openExport": "Open",
+  "@openExport": {
+    "description": "Button that opens the exported file."
+  },
+  "shareExport": "Share",
+  "@shareExport": {
+    "description": "Android button that shares the exported file."
+  },
+  "dismiss": "Close",
+  "@dismiss": {
+    "description": "Button that hides the export result."
+  },
+  "exportFailed": "Export failed",
+  "@exportFailed": {
+    "description": "Headline when the encoder (ffmpeg or Media3) ran and failed; its own technical message is shown under it."
+  },
+  "exportNoFfmpeg": "Could not find ffmpeg, which cutcap exports with",
+  "@exportNoFfmpeg": {
+    "description": "Headline when the ffmpeg program used for export is neither installed with the app nor on PATH."
+  },
+  "exportTargetIsSource": "Choose another file: this one is a clip in your edit",
+  "@exportTargetIsSource": {
+    "description": "Headline when the user chose to save the export over one of the videos the edit is cut from. Try again asks for another file."
+  },
+  "exportNothingToExport": "Nothing to export: the files of all clips are missing",
+  "@exportNothingToExport": {
+    "description": "Headline when every clip's source file was moved or deleted, so the export has nothing to render."
+  },
+  "exportNoEncoder": "This device has no working H.264 encoder",
+  "@exportNoEncoder": {
+    "description": "Headline when no H.264 video encoder (hardware or software) works on the device."
+  },
+  "exportCannotStart": "The export could not be started",
+  "@exportCannotStart": {
+    "description": "Headline when the exporter (ffmpeg on Windows, the export service on Android) did not start; its own message is shown under it."
+  },
+  "exportCannotWrite": "The video could not be saved",
+  "@exportCannotWrite": {
+    "description": "Headline when the exported file could not be written (Windows) or saved to Movies/cutcap (Android)."
+  },
+  "exportBusy": "Another export is still running",
+  "@exportBusy": {
+    "description": "Headline when an earlier export (started before the app was reopened) has not finished yet."
+  },
+  "exportStopped": "Android stopped the export",
+  "@exportStopped": {
+    "description": "Headline when Android ended the export service before the export was done."
+  },
+  "exportTimeLimit": "Android stopped the export: today's time limit for exports ran out",
+  "@exportTimeLimit": {
+    "description": "Headline when Android 15+ stopped the export because the app used up its daily time for media processing."
+  },
+  "editIntact": "Your edit is intact.",
+  "@editIntact": {
+    "description": "Reassurance after a failed export."
+  },
+  "retryExport": "Try again",
+  "@retryExport": {
+    "description": "Button that restarts a failed export."
+  },
+  "moreActions": "More",
+  "@moreActions": {
+    "description": "Phone top bar button that opens a menu with the less frequent actions, such as Clear track."
+  },
+  "clearTrack": "Clear track",
+  "@clearTrack": {
+    "description": "Button that removes every clip from the track; it can be undone."
+  },
+  "sessionKeptAside": "The last edit could not be read and was kept as {fileName}",
+  "@sessionKeptAside": {
+    "description": "Shown at launch when the autosaved edit was corrupt; the editor started empty and the old file was renamed so it is not overwritten. fileName is the renamed file in the app's data folder.",
+    "placeholders": {
+      "fileName": {"type": "String"}
+    }
+  },
+  "sessionUnreadable": "The last edit could not be read",
+  "@sessionUnreadable": {
+    "description": "Shown at launch when the autosaved edit could not be read (and could not be renamed either); the editor started empty."
+  },
+  "sessionNotSaved": "Your edit could not be saved; cutcap tries again with the next change",
+  "@sessionNotSaved": {
+    "description": "Shown when writing the autosave failed, e.g. the disk is full; it goes away once a later save works."
+  },
+  "couldNotOpen": "{count, plural, one{{names} could not be opened as a video} other{{count} files could not be opened as videos: {names}}}",
+  "@couldNotOpen": {
+    "description": "Shown when picked files are not videos this device can play; the other picked files were still added. names lists the file names, comma-separated.",
+    "placeholders": {
+      "count": {"type": "int"},
+      "names": {"type": "String"}
+    }
+  }
+}

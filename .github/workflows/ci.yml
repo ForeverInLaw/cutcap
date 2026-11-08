@@ -1,0 +1,348 @@
+name: CI
+
+on:
+  push:
+    branches: [main, integration/v1]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Cheap checks on every push and PR. Platform builds `needs: check` and
+  # run on main, on v* tags and on PRs that touch their paths (`changes`).
+  check:
+    name: Format, analyze, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # A static FFmpeg 9.0.2 (BtbN linux64 GPL, from a month-end autobuild,
+      # which BtbN keeps) for the `ffmpeg`-tagged export tests, the same
+      # release the Windows bundle pins (ADR 0002). The distro ffmpeg (6.x)
+      # cannot tag the rotated fixture. sha256 is GitHub's asset digest.
+      FFMPEG_VERSION: n9.0.2-39-g7adfbe40dc
+      FFMPEG_URL: https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-10-31-12-59/ffmpeg-n9.0.2-39-g7adfbe40dc-linux64-gpl-9.0.tar.xz
+      FFMPEG_SHA256: 73e29a56974ae5a651133a04584c7483b21afe941e17dc91d79814a758b608d3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: pubspec.yaml
+          cache: true
+
+      # Also generates lib/l10n/app_localizations*.dart (flutter.generate: true).
+      - run: flutter pub get --enforce-lockfile
+
+      - run: dart format --output=none --set-exit-if-changed .
+
+      - run: flutter analyze
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: ffmpeg
+        with:
+          path: ${{ runner.temp }}/ffmpeg
+          key: ffmpeg-linux64-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_SHA256 }}
+
+      - name: Fetch the pinned ffmpeg
+        if: steps.ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          archive="$RUNNER_TEMP/ffmpeg.tar.xz"
+          curl -fsSL --retry 3 -o "$archive" "$FFMPEG_URL"
+          echo "$FFMPEG_SHA256  $archive" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/ffmpeg"
+          tar -xJf "$archive" -C "$RUNNER_TEMP/ffmpeg" --strip-components=2 --wildcards '*/bin/ffmpeg' '*/bin/ffprobe'
+          rm "$archive"
+
+      # Without a GPU the encoder probe falls through to libx264. CI=true
+      # (set by Actions) makes the `ffmpeg`-tagged tests fail instead of
+      # skipping when the tools are missing or cannot make a fixture.
+      - name: Put ffmpeg on PATH
+        run: |
+          echo "$RUNNER_TEMP/ffmpeg" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/ffmpeg/ffmpeg" -hide_banner -version | head -n 1
+
+      - run: flutter test --exclude-tags ffmpeg
+
+      # Apart and expanded, so the log names each export test and shows that
+      # none was skipped.
+      - run: flutter test --tags ffmpeg --reporter expanded
+
+  # Which platform builds a PR needs; pushes and tags decide by ref instead.
+  # Add a filter here for every platform job.
+  changes:
+    name: Changed paths
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      windows: ${{ steps.filter.outputs.windows }}
+      android: ${{ steps.filter.outputs.android }}
+    steps:
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          filters: |
+            windows:
+              - 'lib/**'
+              - 'windows/**'
+              - 'pubspec.*'
+              - 'installer/**'
+              - 'tool/**'
+              - '.github/workflows/ci.yml'
+            android:
+              - 'lib/**'
+              - 'android/**'
+              - 'pubspec.*'
+              - '.github/workflows/ci.yml'
+
+  windows:
+    name: Windows build and installer
+    needs: [check, changes]
+    # `changes` is skipped outside PRs, hence !cancelled() and the explicit
+    # check result.
+    if: >-
+      !cancelled() && needs.check.result == 'success' && (
+        github.ref == 'refs/heads/main' ||
+        startsWith(github.ref, 'refs/tags/v') ||
+        github.event_name == 'workflow_dispatch' ||
+        needs.changes.outputs.windows == 'true'
+      )
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: pubspec.yaml
+          cache: true
+
+      - run: flutter pub get --enforce-lockfile
+
+      # Cache keys from the version and sha256 pinned in the fetch scripts.
+      - name: Read pinned tool versions
+        id: pins
+        shell: pwsh
+        run: |
+          function Pin([string] $Script, [string] $Name) {
+            (Select-String -Path $Script -Pattern ('^\$' + $Name + " = '(.+)'")).Matches[0].Groups[1].Value
+          }
+          foreach ($tool in 'ffmpeg', 'inno_setup') {
+            $script = "tool/fetch_$tool.ps1"
+            "$tool=$tool-$(Pin $script 'Version')-$(Pin $script 'Sha256')" >> $env:GITHUB_OUTPUT
+          }
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: ffmpeg
+        with:
+          path: build/ffmpeg
+          key: ${{ steps.pins.outputs.ffmpeg }}
+
+      - if: steps.ffmpeg.outputs.cache-hit != 'true'
+        run: ./tool/fetch_ffmpeg.ps1 -Destination build/ffmpeg
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: inno
+        with:
+          path: build/innosetup
+          key: ${{ steps.pins.outputs.inno_setup }}
+
+      - if: steps.inno.outputs.cache-hit != 'true'
+        run: ./tool/fetch_inno_setup.ps1 -Destination build/innosetup
+
+      - run: flutter build windows --release
+
+      - name: Compile installer
+        id: installer
+        run: |
+          $installer = ./tool/build_installer.ps1 -Iscc build/innosetup/ISCC.exe
+          "path=$installer" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cutcap-windows
+          path: ${{ steps.installer.outputs.path }}
+          retention-days: 7
+          if-no-files-found: error
+
+  # Debug APK for device checks (arm64 only: every supported phone, and a
+  # third of the size); on v* tags the release APK instead, signed with the
+  # persistent release key from the repository secrets.
+  android:
+    name: Android APK
+    needs: [check, changes]
+    # Gated like `windows`.
+    if: >-
+      !cancelled() && needs.check.result == 'success' && (
+        github.ref == 'refs/heads/main' ||
+        startsWith(github.ref, 'refs/tags/v') ||
+        github.event_name == 'workflow_dispatch' ||
+        needs.changes.outputs.android == 'true'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # AGP 9 runs on JDK 17+; Flutter's Android docs pin 17.
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Caches the Gradle home (wrapper, dependencies, build cache). No
+      # configuration cache, which the spec asks for: Flutter 3.44's Gradle
+      # plugin cannot be stored in it (its :app:DebugMinSdkCheck task holds a
+      # WeakHashMap) and the build fails with it on.
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: pubspec.yaml
+          cache: true
+
+      - run: flutter pub get --enforce-lockfile
+
+      # One debug key for every run, so a new debug APK installs over the
+      # last one (adb install -r) instead of needing an uninstall. Made on
+      # the first run, then restored; debug keys are not secret. The
+      # passwords and alias are the SDK debug key's defaults, which the
+      # debug signing config keeps (android/app/build.gradle.kts).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        id: debug-key
+        with:
+          path: ${{ runner.temp }}/cutcap-debug.keystore
+          key: android-debug-keystore-v1
+
+      - if: ${{ !startsWith(github.ref, 'refs/tags/v') && steps.debug-key.outputs.cache-hit != 'true' }}
+        run: >-
+          keytool -genkeypair -keystore "$RUNNER_TEMP/cutcap-debug.keystore"
+          -storepass android -alias androiddebugkey -keypass android
+          -keyalg RSA -keysize 2048 -validity 10000
+          -dname "CN=Android Debug,O=Android,C=US"
+
+      - if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: flutter build apk --debug --target-platform android-arm64
+        env:
+          CUTCAP_DEBUG_KEYSTORE: ${{ runner.temp }}/cutcap-debug.keystore
+
+      # The release key: the owner sets the four secrets once (see
+      # docs/android-release.md). A release is never signed with anything
+      # else, so missing secrets fail here rather than later.
+      - name: Decode release keystore
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=()
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repository secrets for the release key: ${missing[*]} (docs/android-release.md)"
+            exit 1
+          fi
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/cutcap-release.keystore"
+
+      # Phones only (32- and 64-bit ARM); x86_64 would only serve emulators.
+      - name: Build release APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: release-apk
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/cutcap-release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          flutter build apk --release --target-platform android-arm,android-arm64
+          version=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)
+          apk="build/app/outputs/flutter-apk/cutcap-$version.apk"
+          mv build/app/outputs/flutter-apk/app-release.apk "$apk"
+          # Refuse an APK the debug key signed (the Gradle fallback).
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)
+          certs=$("$apksigner" verify --print-certs "$apk")
+          if grep -q 'CN=Android Debug' <<<"$certs"; then
+            echo "::error::$apk is signed with a debug key"
+            exit 1
+          fi
+          echo "path=$apk" >> "$GITHUB_OUTPUT"
+
+      # Kotlin unit tests; the APK build above wrote local.properties and
+      # the Gradle wrapper.
+      - run: ./gradlew :app:testDebugUnitTest
+        working-directory: android
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        with:
+          name: cutcap-android-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: cutcap-android
+          path: ${{ steps.release-apk.outputs.path }}
+          retention-days: 7
+          if-no-files-found: error
+
+  # A v* tag publishes the installer and the APK. The tag must match
+  # pubspec.yaml's version.
+  release:
+    name: GitHub Release
+    needs: [windows, android]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cutcap-windows
+          path: dist
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cutcap-android
+          path: dist
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          installer="dist/cutcap-setup-${TAG#v}.exe"
+          apk="dist/cutcap-${TAG#v}.apk"
+          for file in "$installer" "$apk"; do
+            if [ ! -f "$file" ]; then
+              echo "::error::Tag $TAG does not match pubspec.yaml's version (built: $(ls dist))"
+              exit 1
+            fi
+          done
+          gh release create "$TAG" "$installer" "$apk" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "cutcap ${TAG#v}" \
+            --generate-notes \
+            --verify-tag

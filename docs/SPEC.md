@@ -119,9 +119,10 @@ cutcap is a minimal, offline video cutter for Android 10+ and Windows 10 22H2+/1
 
 - Good tests exercise external behaviour through a public seam and survive refactors of internals. No tests of private structure, no snapshot tests of generated command lines, no smoke tests for their own sake.
 - **Seam 1 — `EditorSession`:** unit tests (written test-first) drive commands and assert on observable state: clip order, in/out points, total duration, sequence↔source time mapping, frame snapping, trim bounds, undo/redo round trips.
-- **Seam 2 — `ExportEngine` (Windows/ffmpeg implementation):** integration tests run a real export on Ubuntu CI with system ffmpeg against generated fixtures (`testsrc` clips with different resolutions and frame rates, one without audio), then assert with `ffprobe`: duration equals the sum of clips within one frame, resolution and fps match the first clip, an audio stream exists. On runners without GPUs the encoder probe falls through to `libx264`.
+- **Seam 2 — `ExportEngine` (Windows/ffmpeg implementation):** integration tests run a real export on Ubuntu CI with a pinned static FFmpeg (ADR 0002) against generated fixtures (`testsrc` clips with different resolutions and frame rates, one without audio), then assert with `ffprobe`: duration equals the sum of clips within one frame, resolution and fps match the first clip, an audio stream exists. On runners without GPUs the encoder probe falls through to `libx264`.
 - **Android `ExportEngine` (Media3):** not run in CI; verified with a manual on-device checklist using the same scenarios.
-- **Not tested:** `PreviewPlayer` and UI widgets.
+- **UI widgets** are tested only where they carry gesture or layout logic: the timeline gestures (scrub, trim, reorder, pinch, edge scroll) and whether the phone top bar fits at 360 dp and large text. There are no golden or snapshot tests.
+- **Not tested:** `PreviewPlayer`.
 - **Prior art:** none — greenfield repository.
 
 ## Out of Scope

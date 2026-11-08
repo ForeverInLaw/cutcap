@@ -1,0 +1,6 @@
+tags:
+  # Runs the real ffmpeg and ffprobe from PATH; skipped when they are absent,
+  # except on CI (CI=true), where that fails them (test/support/ffmpeg_tools.dart).
+  # Select or exclude with `flutter test --tags ffmpeg` / `--exclude-tags ffmpeg`.
+  ffmpeg:
+    timeout: 2x

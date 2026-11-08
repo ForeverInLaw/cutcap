@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-07T21:40:00Z",
+  "title": "Design System: cutcap",
+  "extensions": {
+    "colorMeta": {
+      "signal": { "role": "primary", "displayName": "Signal Red", "canonical": "#E2001A", "tonalRamp": ["#3d0007", "#6b000d", "#9c0012", "#E2001A", "#ff3d4b", "#ff7a83", "#ffb3b8", "#ffe3e5"] },
+      "preview": { "role": "neutral", "displayName": "Preview Black", "canonical": "#111111", "tonalRamp": ["#0a0a0a", "#111111", "#1b1b1a", "#262624", "#41413E", "#8C8C88", "#cfcfcb", "#F4F4F1"] },
+      "on-preview": { "role": "neutral", "displayName": "On-Preview White", "canonical": "#FFFFFF", "tonalRamp": ["#262624", "#41413E", "#6b6b67", "#8C8C88", "#A3A39E", "#cfcfcb", "#F4F4F1", "#FFFFFF"] },
+      "workspace": { "role": "neutral", "displayName": "Graphite Workspace", "canonical": "#262624", "tonalRamp": ["#111111", "#1b1b1a", "#262624", "#33332f", "#41413E", "#5c5c58", "#8C8C88", "#F4F4F1"] },
+      "ink": { "role": "neutral", "displayName": "Paper Ink", "canonical": "#F4F4F1", "tonalRamp": ["#262624", "#41413E", "#6b6b67", "#8C8C88", "#A3A39E", "#cfcfcb", "#e6e6e2", "#F4F4F1"] },
+      "ink-secondary": { "role": "neutral", "displayName": "Ink Secondary", "canonical": "#A3A39E", "tonalRamp": ["#262624", "#41413E", "#5c5c58", "#8C8C88", "#A3A39E", "#bdbdb8", "#d8d8d4", "#F4F4F1"] },
+      "ink-muted": { "role": "neutral", "displayName": "Ink Muted", "canonical": "#8C8C88", "tonalRamp": ["#262624", "#41413E", "#5c5c58", "#757571", "#8C8C88", "#A3A39E", "#cfcfcb", "#F4F4F1"] },
+      "frame": { "role": "neutral", "displayName": "Frame Grey", "canonical": "#41413E", "tonalRamp": ["#111111", "#262624", "#33332f", "#41413E", "#5c5c58", "#8C8C88", "#cfcfcb", "#F4F4F1"] }
+    },
+    "typographyMeta": {
+      "display-desktop": { "displayName": "Display, desktop", "purpose": "Headline playhead timecode at 80 px, tabular." },
+      "display-phone": { "displayName": "Display, phone", "purpose": "Headline playhead timecode on the phone, 44 px, tabular." },
+      "headline": { "displayName": "Headline", "purpose": "Empty-state heading on desktop." },
+      "headline-phone": { "displayName": "Headline, phone", "purpose": "Empty-state heading on the phone." },
+      "total": { "displayName": "Total", "purpose": "Sequence total beside the desktop timecode, ink-muted, on its baseline." },
+      "wordmark": { "displayName": "Wordmark", "purpose": "Lowercase cutcap in the top bar, white on black." },
+      "body-large": { "displayName": "Body Large", "purpose": "Empty-state explanation (max 560 px); phone sequence total." },
+      "body": { "displayName": "Body", "purpose": "Drop hint in the empty state." },
+      "body-small": { "displayName": "Body Small", "purpose": "Status summary, export detail line, tooltips." },
+      "label": { "displayName": "Label", "purpose": "Button labels (700 on filled buttons) and export messages." },
+      "label-guide": { "displayName": "Label Guide", "purpose": "Ruler guide words naming the first and last time in view; tick labels at 400 in ink-secondary." },
+      "label-chip": { "displayName": "Label Chip", "purpose": "\"File not found\" in the missing-file chip." },
+      "label-small": { "displayName": "Label Small", "purpose": "Clip names; clip lengths at 400 in ink-secondary." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "short", "value": "150ms", "purpose": "Fades and switches: selected frame, just-edited line, status content cross-fade." },
+      { "name": "standard", "value": "200ms", "purpose": "Size changes, reorder and ripple: the status band growing into the export panel." },
+      { "name": "ease-standard", "value": "cubic-bezier(0.2, 0, 0, 1)", "purpose": "Material 3 standard easing for every transition." },
+      { "name": "reduce-motion", "value": "0ms", "purpose": "Every duration becomes zero when the system asks to reduce motion." }
+    ],
+    "breakpoints": [
+      { "name": "phone", "value": "<720px" },
+      { "name": "desktop", "value": ">=720px" }
+    ],
+    "states": {
+      "hover": "ink overlay 6%",
+      "focus": "ink overlay 10% plus 2 px ring, 2 px clear of the edge, keyboard only",
+      "disabled": "content ink 38%, outline ink 20%",
+      "progressTrack": "ink-muted 35%"
+    }
+  },
+  "components": [
+    {
+      "name": "Filled Button",
+      "kind": "button",
+      "refersTo": "button-filled",
+      "description": "The one main action in a group: Export, Play, Add video in the empty state, Open, Retry.",
+      "html": "<button class=\"ds-btn-filled\">Export</button>",
+      "css": ".ds-btn-filled { background: #F4F4F1; color: #262624; font-family: 'Golos Text', sans-serif; font-size: 14px; font-weight: 700; line-height: 1.2; height: 48px; padding: 0 20px; border: none; border-radius: 2px; cursor: pointer; transition: background-color 150ms cubic-bezier(0.2, 0, 0, 1); } .ds-btn-filled:hover { background: #e0e0dc; } .ds-btn-filled:focus-visible { outline: 2px solid #F4F4F1; outline-offset: 2px; } .ds-btn-filled:disabled { background: rgba(244,244,241,0.12); color: rgba(244,244,241,0.38); cursor: default; }"
+    },
+    {
+      "name": "Outlined Button",
+      "kind": "button",
+      "refersTo": "button-outlined",
+      "description": "The default control: Split, Delete, Undo, Redo, Cancel, Share.",
+      "html": "<button class=\"ds-btn-outlined\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm0 12c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3h-3z\"/></svg>Split</button>",
+      "css": ".ds-btn-outlined { display: inline-flex; align-items: center; gap: 8px; background: #262624; color: #F4F4F1; font-family: 'Golos Text', sans-serif; font-size: 14px; font-weight: 500; line-height: 1.2; height: 48px; padding: 0 14px; border: 1px solid #F4F4F1; border-radius: 2px; cursor: pointer; transition: background-color 150ms cubic-bezier(0.2, 0, 0, 1); } .ds-btn-outlined:hover { background: rgba(244,244,241,0.06); } .ds-btn-outlined:focus-visible { outline: 2px solid #F4F4F1; outline-offset: 2px; } .ds-btn-outlined:disabled { color: rgba(244,244,241,0.38); border-color: rgba(244,244,241,0.2); cursor: default; }"
+    },
+    {
+      "name": "Plain Button",
+      "kind": "button",
+      "refersTo": "button-plain",
+      "description": "Words inside bars (Add video in the desktop bar) and dismiss.",
+      "html": "<button class=\"ds-btn-plain\">Add video</button>",
+      "css": ".ds-btn-plain { background: transparent; color: #F4F4F1; font-family: 'Golos Text', sans-serif; font-size: 14px; font-weight: 500; line-height: 1.2; height: 48px; padding: 0 12px; border: none; border-radius: 2px; cursor: pointer; transition: background-color 150ms cubic-bezier(0.2, 0, 0, 1); } .ds-btn-plain:hover { background: rgba(244,244,241,0.06); } .ds-btn-plain:focus-visible { outline: 2px solid #F4F4F1; outline-offset: 2px; }"
+    },
+    {
+      "name": "Top Bar",
+      "kind": "nav",
+      "refersTo": "top-bar",
+      "description": "Paper on black: lowercase wordmark left, Add video and Export right (desktop, 56 px).",
+      "html": "<header class=\"ds-topbar\"><span class=\"ds-topbar-mark\">cutcap</span><span class=\"ds-topbar-actions\"><button class=\"ds-topbar-plain\">Add video</button><button class=\"ds-topbar-filled\">Export</button></span></header>",
+      "css": ".ds-topbar { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 32px; background: #111111; } .ds-topbar-mark { color: #FFFFFF; font-family: 'Golos Text', sans-serif; font-size: 22px; font-weight: 700; line-height: 1; letter-spacing: -0.66px; } .ds-topbar-actions { display: flex; gap: 16px; } .ds-topbar-plain, .ds-topbar-filled { height: 40px; font-family: 'Golos Text', sans-serif; font-size: 14px; border-radius: 2px; border: none; cursor: pointer; } .ds-topbar-plain { background: transparent; color: #FFFFFF; font-weight: 500; padding: 0 12px; } .ds-topbar-plain:hover { background: rgba(244,244,241,0.06); } .ds-topbar-filled { background: #F4F4F1; color: #262624; font-weight: 700; padding: 0 20px; } .ds-topbar-plain:focus-visible, .ds-topbar-filled:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }"
+    },
+    {
+      "name": "Headline Timecode",
+      "kind": "custom",
+      "refersTo": "display-desktop",
+      "description": "The playhead time as the screen's headline, tabular, with the grey total on its baseline and the red underline that ties it to the playhead.",
+      "html": "<div class=\"ds-readout\"><span class=\"ds-readout-time\">00:01:12.08</span><span class=\"ds-readout-total\">/ 00:03:40.00</span></div>",
+      "css": ".ds-readout { display: flex; align-items: baseline; gap: 12px; background: #262624; padding: 24px 32px; } .ds-readout-time { color: #F4F4F1; font-family: 'Golos Text', sans-serif; font-size: 80px; font-weight: 700; line-height: 1; letter-spacing: -3.2px; font-feature-settings: 'tnum'; border-bottom: 2px solid #E2001A; } .ds-readout-total { color: #8C8C88; font-family: 'Golos Text', sans-serif; font-size: 28px; font-weight: 400; line-height: 1; letter-spacing: -0.6px; font-feature-settings: 'tnum'; }"
+    },
+    {
+      "name": "Clip Tile",
+      "kind": "card",
+      "refersTo": "clip-tile",
+      "description": "Name and length over a square filmstrip; selected draws a 2 px ink frame, just edited a 3 px red base line.",
+      "html": "<div class=\"ds-clip\" tabindex=\"0\" aria-selected=\"true\"><div class=\"ds-clip-label\"><span class=\"ds-clip-name\">IMG_4822.mp4</span><span class=\"ds-clip-len\"> · 00:00:20.00</span></div><div class=\"ds-clip-film\"></div></div>",
+      "css": ".ds-clip { width: 240px; background: #262624; cursor: pointer; } .ds-clip-label { font-family: 'Golos Text', sans-serif; font-size: 11px; line-height: 1.2; letter-spacing: 0.4px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; } .ds-clip-name { color: #F4F4F1; font-weight: 500; } .ds-clip-len { color: #A3A39E; font-weight: 400; font-feature-settings: 'tnum'; } .ds-clip-film { position: relative; height: 110px; background: repeating-linear-gradient(90deg, #41413E 0 195px, #262624 195px 196px); } .ds-clip[aria-selected=\"true\"] .ds-clip-film { outline: 2px solid #F4F4F1; outline-offset: -2px; } .ds-clip:focus-visible { outline: 2px solid #F4F4F1; outline-offset: 2px; } .ds-clip-film::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #E2001A; }"
+    },
+    {
+      "name": "File Not Found Clip",
+      "kind": "custom",
+      "refersTo": "missing-chip",
+      "description": "A clip whose source is gone: 1 px ink hatching at 45 degrees, 7 px pitch, with a graphite chip naming the problem.",
+      "html": "<div class=\"ds-missing\"><span class=\"ds-missing-chip\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M17 7h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1 0 1.43-.98 2.63-2.31 2.98l1.46 1.46C20.88 15.61 22 13.95 22 12c0-2.76-2.24-5-5-5zm-1 4h-2.19l2 2H16zM2 4.27l3.11 3.11C3.29 8.12 2 9.91 2 12c0 2.76 2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1 0-1.59 1.21-2.9 2.76-3.07L8.73 11H8v2h2.73L13 15.27V17h1.73l4.01 4L20 19.74 3.27 3 2 4.27z\"/></svg>File not found</span></div>",
+      "css": ".ds-missing { display: flex; align-items: center; justify-content: center; width: 240px; height: 110px; border: 1px solid #F4F4F1; background: repeating-linear-gradient(-45deg, transparent 0 4px, #F4F4F1 4px 5px) #262624; } .ds-missing-chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; background: #262624; border: 1px solid #F4F4F1; color: #F4F4F1; font-family: 'Golos Text', sans-serif; font-size: 12px; font-weight: 500; line-height: 1.2; }"
+    },
+    {
+      "name": "Export Failed Band",
+      "kind": "custom",
+      "refersTo": "status-band",
+      "description": "Status band after a failed export: ink icon, reason in words, intact-edit note, Retry and dismiss. No red.",
+      "html": "<div class=\"ds-band\"><div class=\"ds-band-msg\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z\"/></svg><div><div class=\"ds-band-title\">Export failed: not enough space on D:</div><div class=\"ds-band-detail\">Your edit is intact.</div></div></div><button class=\"ds-band-retry\">Retry</button></div>",
+      "css": ".ds-band { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 64px; padding: 8px 0; border-top: 1px solid #F4F4F1; background: #262624; color: #F4F4F1; font-family: 'Golos Text', sans-serif; } .ds-band-msg { display: flex; gap: 8px; align-items: flex-start; } .ds-band-title { font-size: 14px; font-weight: 500; line-height: 1.2; } .ds-band-detail { font-size: 12px; line-height: 1.3; color: #A3A39E; } .ds-band-retry { height: 48px; padding: 0 20px; background: #F4F4F1; color: #262624; font-family: 'Golos Text', sans-serif; font-size: 14px; font-weight: 700; border: none; border-radius: 2px; cursor: pointer; } .ds-band-retry:focus-visible { outline: 2px solid #F4F4F1; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Timecode Poster",
+    "overview": "The editor is set like an International Typographic Style poster: a strict modular grid, one grotesk, two flat fields and one signal colour. The black preview field holds the frame; the graphite workspace beneath it holds the time, the tools and the single track, all drawn in paper-white ink. The playhead time is the screen's headline, set at poster scale in fixed tabular cells, and one red rule ties that headline to the playhead running through the ruler and the track. Time and rule move as one stroke.\n\nDensity is deliberately low for an editor. There is one track, one row of tools and one status line; nothing is stacked in panels or docked in sidebars. Structure comes from hairline ink rules and alignment to the 12-column grid, never from boxes, tints or depth. Every control is a standard Material 3 button with square corners and a hairline outline, so the editor reads as typography first and machinery second.\n\nThere is one scheme, dark graphite, whatever the system theme. The owner's anti-references are confirmed: no dense \"pro\" NLE look (Premiere, DaVinci) and no dark glow or neon. The category default of a grey NLE with rounded tiles and a blue accent is rejected.",
+    "keyCharacteristics": [
+      "Two flat fields: black preview (bar included) over graphite workspace; no third surface.",
+      "Paper ink for all text, rules, outlines and focus; red only for time and cuts.",
+      "Golos Text in three weights, tabular figures on every time.",
+      "Hairline 1 px ink rules divide bands; 2 px is the only heavier stroke.",
+      "Corners 0 to 2 px; no shadows, gradients, tints or glow.",
+      "48 dp targets and a visible keyboard focus ring on every control."
+    ],
+    "rules": [
+      { "name": "The Red Reservation Rule", "body": "Signal red marks only time and cuts: the playhead and its tie to the headline timecode, cut points, and the just-edited clip. It is never used for errors, warnings, destructive actions, selection, hover, focus or decoration. Errors are told in words with an ink icon; Delete is an ordinary outlined button.", "section": "colors" },
+      { "name": "The Two Fields Rule", "body": "The screen has exactly two surfaces: preview black and graphite workspace. Every Material surface-container role resolves to workspace; there are no raised cards, panels or tinted containers.", "section": "colors" },
+      { "name": "The One Scheme Rule", "body": "cutcap ships one dark graphite scheme regardless of the system theme. There is no light theme to keep in sync.", "section": "colors" },
+      { "name": "The Fixed Cell Rule", "body": "Every time on screen (timecode, total, ruler labels, clip lengths, status summary, export progress) is set with tabular figures, so digits change in place and never jitter sideways.", "section": "typography" },
+      { "name": "The One Timecode Rule", "body": "Time has one form, `HH:MM:SS.FF`, shown at three sizes (80/44 px headline, 12 px ruler, 11 px clip label). Never abbreviate it differently per place.", "section": "typography" },
+      { "name": "The Shrink Whole Rule", "body": "When the headline timecode and total do not fit their columns (narrow window, large system text), the pair scales down as one unit; it never wraps, truncates or reflows.", "section": "typography" },
+      { "name": "The Baseline Rule", "body": "Controls in the headline row stand on the timecode's alphabetic baseline, not centred on it.", "section": "layout" },
+      { "name": "The Grow-With-Text Rule", "body": "Label rows, ruler height and band heights are measured from the system text scale; nothing is clipped at 130 % text.", "section": "layout" },
+      { "name": "The No-Depth Rule", "body": "No shadows, gradients, tints, blurs or glow anywhere. If something needs separating, give it a hairline rule or a field change.", "section": "elevation" }
+    ],
+    "dos": [
+      "**Do** keep signal red (#E2001A) to the playhead, its tie to the headline timecode, cut points and the just-edited clip.",
+      "**Do** tell errors in words with an ink icon and a retry, never in colour.",
+      "**Do** set every time with tabular figures in the one `HH:MM:SS.FF` form.",
+      "**Do** separate bands with 1 px ink hairlines and alignment to the 12-column grid with 24 px gutters.",
+      "**Do** use stock Material 3 buttons through the theme: filled for the one main action in a group, outlined by default, plain inside bars and for dismiss.",
+      "**Do** give every control a 48 dp target, a tooltip, and the 2 px keyboard focus ring.",
+      "**Do** zero all motion under reduce-motion."
+    ],
+    "donts": [
+      "**Don't** add a light theme or follow the system brightness; cutcap has one graphite scheme.",
+      "**Don't** use red for errors, warnings, Delete, selection, hover or focus.",
+      "**Don't** use shadows, gradients, tinted containers, blur, glow or neon.",
+      "**Don't** round corners past 2 px or build rounded tiles.",
+      "**Don't** introduce a second typeface, a blue or any second accent colour, or a third surface colour.",
+      "**Don't** pack the screen like a pro NLE (Premiere, DaVinci): no extra tracks, panels, sidebars or docked inspectors.",
+      "**Don't** use ink-muted (#8C8C88) for text smaller than the 28 px total."
+    ]
+  }
+}

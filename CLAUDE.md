@@ -6,6 +6,30 @@ Minimal frame-accurate video cutter for Android 10+ and Windows 10/11 x64, built
 - Decisions: `docs/adr/`
 - UI design work goes through the `impeccable` skill.
 
+## Commands
+
+Flutter 3.44.8 exactly (pinned in `pubspec.yaml` under `environment.flutter`; CI reads it from there). Targets: `windows`, `android` only.
+
+| Task | Command |
+| --- | --- |
+| Fetch deps (also runs gen-l10n) | `flutter pub get` |
+| Regenerate l10n after editing `lib/l10n/*.arb` | `flutter gen-l10n` |
+| Format check (CI) | `dart format --output=none --set-exit-if-changed .` |
+| Analyze (CI) | `flutter analyze` |
+| Test one file | `flutter test test/app_test.dart` |
+| Test all (CI) | `flutter test` |
+| Export integration tests only (need ffmpeg + ffprobe on PATH; skipped otherwise, but failed when `CI=true`) | `flutter test --tags ffmpeg` |
+| Fetch the pinned Windows FFmpeg (sha256-verified) | `pwsh tool/fetch_ffmpeg.ps1 -Destination <dir>` |
+| Run on Windows | `flutter run -d windows` |
+| Build Windows | `flutter build windows` (`--debug` for a quick check) |
+| Build the installer `build/installer/cutcap-setup-x.y.z.exe` (Inno Setup 6; fetches ffmpeg into `build/ffmpeg` when missing) | `flutter build windows --release`, then `pwsh tool/build_installer.ps1` |
+| Fetch the pinned Inno Setup (what CI uses; any installed Inno Setup 6 works locally) | `pwsh tool/fetch_inno_setup.ps1 -Destination <dir>` |
+| Publish a release (CI builds it and attaches the installer) | push a tag `vX.Y.Z` equal to `version` in `pubspec.yaml` |
+| Build Android APK | `flutter build apk` (needs the Android SDK, which the dev box does not have; CI's `android` job builds a debug APK, artifact `cutcap-android-debug`) |
+| Kotlin unit tests (after a build wrote `android/local.properties`) | `cd android && ./gradlew :app:testDebugUnitTest` |
+
+Generated `lib/l10n/app_localizations*.dart` files are gitignored; the `.arb` files are the source of truth. CI is `.github/workflows/ci.yml`: `check` on every push and PR; the Windows installer and the Android debug APK on main, `v*` tags and PRs touching their paths; a GitHub Release on `v*` tags. Android sources are `content://` URIs; see ADR 0003.
+
 ## Agent skills
 
 ### Issue tracker

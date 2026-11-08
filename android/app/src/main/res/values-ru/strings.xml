@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="export_channel">Экспорт</string>
+    <string name="export_running">Экспорт видео</string>
+    <string name="export_cancel">Остановить</string>
+    <string name="export_saved">Сохранено в Movies/cutcap</string>
+    <string name="export_failed">Экспорт не удался</string>
+    <string name="export_edit_intact">Монтаж не пострадал.</string>
+    <string name="export_cannot_start">Не удалось запустить экспорт.</string>
+    <string name="export_cannot_write">Не удалось сохранить видео в Movies/cutcap.</string>
+    <string name="export_stopped">Android остановил экспорт.</string>
+    <string name="export_time_limit">Android остановил экспорт: на сегодня время для экспорта исчерпано.</string>
+</resources>
