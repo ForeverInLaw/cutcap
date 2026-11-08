@@ -5,6 +5,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../../domain/editor_session.dart';
 import '../../export/android_export_engine.dart';
 import '../../export/export_engine.dart' as engine;
 import '../../export/ffmpeg_export_engine.dart';
@@ -60,6 +61,17 @@ Future<String?> _askSaveLocation(String suggestedName) async {
   return location?.path;
 }
 
+/// The source of the first clip whose file is still there: the export is
+/// named after it and takes its format; null when nothing can be exported.
+final exportSourceProvider = Provider<Source?>((ref) {
+  final list = ref.watch(sessionProvider.select((s) => s.editList));
+  final missing = ref.watch(missingSourcesProvider);
+  final clip = list.clips
+      .where((clip) => !missing.contains(clip.sourceId))
+      .firstOrNull;
+  return clip == null ? null : list.sourceOf(clip);
+});
+
 final exportProvider = NotifierProvider<ExportNotifier, ExportStatus>(
   ExportNotifier.new,
 );
@@ -83,9 +95,8 @@ final class ExportNotifier extends Notifier<ExportStatus> {
 
   /// Asks where to save, then exports the edit there.
   Future<void> start() async {
-    final list = ref.read(sessionProvider).editList;
-    if (list.clips.isEmpty || state is ExportRunning) return;
-    final first = list.sourceOf(list.clips.first);
+    final first = ref.read(exportSourceProvider);
+    if (first == null || state is ExportRunning) return;
     final chosen = await ref.read(saveLocationProvider)(
       '${p.basenameWithoutExtension(first.name)}-cut.mp4',
     );

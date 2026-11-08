@@ -75,7 +75,7 @@ final editorViewStateProvider = Provider<EditorViewState>((ref) {
     canRedo: editable && canRedo,
     canClear: editable && list.clips.isNotEmpty,
     canAdd: editable,
-    canExport: editable && list.clips.isNotEmpty,
+    canExport: editable && ref.watch(exportSourceProvider) != null,
     export: export,
     // Drops from Explorer; Android has no desktop to drag from.
     acceptsFileDrop: defaultTargetPlatform == TargetPlatform.windows,
