@@ -217,7 +217,7 @@ State overlays derive from ink by opacity, not new hues: hover 6 %, focus 10 %, 
 ### Hierarchy
 - **Display, desktop** (700, 80 px, line-height 1, -3.2 px): the headline playhead timecode.
 - **Display, phone** (700, 44 px, line-height 1, -1.3 px): the same timecode on the phone.
-- **Total** (400, 28 px, line-height 1, -0.6 px): "/ total" beside the desktop timecode, on its baseline, in ink-muted. On the phone the total uses Body Large in ink-secondary.
+- **Total** (400, 28 px, line-height 1, -0.6 px): "/ total" beside the desktop timecode, on its baseline, in ink-muted; once the Shrink Whole Rule scales the pair down, it takes ink-secondary. On the phone the total uses Body Large in ink-secondary.
 - **Headline** (700, 32 px, 1.15, -0.8 px): the empty-state heading on desktop; **Headline, phone** (700, 24 px, 1.2, -0.5 px) on the phone.
 - **Wordmark** (700, 22 px, line-height 1, -0.66 px): lowercase "cutcap" in the top bar.
 - **Body Large** (400, 16 px, 1.4): the empty-state explanation, capped at 560 px wide.

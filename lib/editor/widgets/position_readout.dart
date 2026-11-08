@@ -50,14 +50,23 @@ class PositionReadout extends StatelessWidget {
   static const _desktopGap = 12.0;
   static const _phoneGap = 8.0;
 
-  static (TextStyle, TextStyle) _styles(BuildContext context, bool compact) {
+  /// The time's and the total's styles. Ink-muted is only for the full
+  /// 28 px desktop total: once the readout is [shrunk], the total takes
+  /// ink-secondary like other small text (DESIGN.md).
+  static (TextStyle, TextStyle) _styles(
+    BuildContext context,
+    bool compact, {
+    bool shrunk = false,
+  }) {
     final text = Theme.of(context).textTheme;
     final tokens = CutcapTokens.of(context);
     final time = (compact ? text.displaySmall : text.displayLarge)!;
     // Line height 1 so the headline alone sets the baseline drop.
     final total = compact
         ? text.bodyLarge!.copyWith(color: tokens.inkSecondary, height: 1)
-        : text.headlineMedium!.copyWith(color: tokens.inkMuted);
+        : text.headlineMedium!.copyWith(
+            color: shrunk ? tokens.inkSecondary : tokens.inkMuted,
+          );
     return (
       time.copyWith(fontFeatures: TimecodeText.tabular),
       total.copyWith(fontFeatures: TimecodeText.tabular),
@@ -109,7 +118,11 @@ class PositionReadout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (timeStyle, totalStyle) = _styles(context, compact);
+    final (timeStyle, totalStyle) = _styles(
+      context,
+      compact,
+      shrunk: geometry.scale < 1,
+    );
     final (time, total) = _texts(state);
     TextStyle scaled(TextStyle style) => geometry.scale == 1
         ? style
