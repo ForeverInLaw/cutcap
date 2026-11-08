@@ -139,5 +139,5 @@ Pub versions are pinned exactly (no caret). The FFmpeg sha256 is GitHub's publis
 - Exact seeks cost up to about 1 s on long-GOP 1080p/60 sources. Camera footage (GOP about 1 s) is far cheaper, but screen recordings may feel sluggish when scrubbing.
 - When a clip's rate differs from the output rate, its first and last output frames can be one source frame off (under one output frame). This is inherent to rate conversion, and the CI duration/frame-count assertions tolerate it.
 - `h264_qsv` options are untested (no Intel GPU here); a failed probe falls through safely.
-- Colour is normalised to BT.709 SDR; HDR (HLG/PQ, BT.2020) sources are not tonemapped and will look washed out. Non-square-pixel sources are not corrected (`setsar=1` after scale).
+- Colour is normalised to BT.709 SDR; HDR (HLG/PQ, BT.2020) sources are not tonemapped and will look washed out. The Android export tone-maps them to SDR (ADR 0004), so an HDR source exports differently on the two platforms. Non-square-pixel sources are not corrected (`setsar=1` after scale).
 - Ubuntu CI integration tests use the distro ffmpeg, not 9.0.2. The template has only been run on 9.0.2; recheck it (and the fixture commands, since `-display_rotation` needs ffmpeg 7+) on the CI version when CI is set up.

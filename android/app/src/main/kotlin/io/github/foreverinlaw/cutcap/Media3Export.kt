@@ -35,7 +35,8 @@ import java.io.File
  *   a slower clip keeps its own rate);
  * - silence for clips without audio (the sequence always carries audio),
  *   resampled to 48 kHz stereo;
- * - HDR sources tone-mapped to SDR, like the BT.709 output on Windows;
+ * - HDR sources tone-mapped to SDR (the Windows export does not tone-map,
+ *   ADR 0002 and 0004);
  * - the platform's (hardware) encoders, at the planned bitrate.
  *
  * Create, [start], poll [progress] and [cancel] on the main thread.
