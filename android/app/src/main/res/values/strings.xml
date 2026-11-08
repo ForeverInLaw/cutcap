@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Texts of the export notifications (ExportNotifications.kt); the editor's
+     own texts live in lib/l10n. -->
+<resources>
+    <string name="export_channel">Export</string>
+    <string name="export_running">Exporting video</string>
+    <string name="export_cancel">Cancel</string>
+    <string name="export_saved">Saved to Movies/cutcap</string>
+    <string name="export_failed">Export failed</string>
+    <string name="export_edit_intact">Your edit is intact.</string>
+</resources>

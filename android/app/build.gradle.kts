@@ -53,6 +53,11 @@ flutter {
 }
 
 dependencies {
+    // Export (Media3Export.kt): Transformer brings the effect, muxer and
+    // ExoPlayer modules it needs.
+    implementation("androidx.media3:media3-transformer:1.11.1")
+    implementation("androidx.media3:media3-effect:1.11.1")
+    implementation("androidx.media3:media3-common:1.11.1")
     // Kotlin unit tests (`./gradlew :app:testDebugUnitTest`), run in CI.
     testImplementation("junit:junit:4.13.2")
 }
