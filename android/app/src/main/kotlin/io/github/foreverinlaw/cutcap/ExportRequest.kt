@@ -3,8 +3,8 @@ package io.github.foreverinlaw.cutcap
 /**
  * One export as the Dart side plans it (`AndroidExportEngine`): the
  * `ExportPlan` reduced to what Media3 needs. Sizes, rate and bitrate are
- * the first clip's, by the spec's output rules; each clip is the span of
- * its source to decode.
+ * the first clip's, by the spec's output rules, and the audio settings are
+ * the plan's; each clip is the span of its source to decode.
  */
 data class ExportRequest(
     /** File name in Movies/cutcap; MediaStore makes it unique and valid. */
@@ -15,6 +15,10 @@ data class ExportRequest(
     val frameRateDenominator: Int,
     /** Target video bitrate in bits per second. */
     val videoBitRate: Int,
+    /** Output audio sample rate in Hz (stereo). */
+    val audioSampleRate: Int,
+    /** Target AAC bitrate in bits per second. */
+    val audioBitRate: Int,
     val clips: List<Clip>,
 ) {
     /** A source URI and the span of it to export, in microseconds. */
@@ -49,6 +53,8 @@ data class ExportRequest(
                 frameRateNumerator = int("frameRateNumerator"),
                 frameRateDenominator = int("frameRateDenominator"),
                 videoBitRate = int("videoBitRate"),
+                audioSampleRate = int("audioSampleRate"),
+                audioBitRate = int("audioBitRate"),
                 clips = clips,
             ).also(::requireValid)
         }
@@ -60,6 +66,7 @@ data class ExportRequest(
             }
             require(frameRateNumerator > 0 && frameRateDenominator > 0) { "frame rate not positive" }
             require(videoBitRate > 0) { "bitrate not positive" }
+            require(audioSampleRate > 0 && audioBitRate > 0) { "audio settings not positive" }
             clips.forEach { require(it.startUs >= 0 && it.endUs > it.startUs) { "empty span in ${it.uri}" } }
         }
     }

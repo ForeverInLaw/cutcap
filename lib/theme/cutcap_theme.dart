@@ -52,10 +52,11 @@ abstract final class CutcapTheme {
       height: 1,
       letterSpacing: -0.66,
     ),
-    titleMedium: TextStyle(
-      fontSize: 16,
+    // The "File not found" chip on a missing clip.
+    titleSmall: TextStyle(
+      fontSize: 12,
       fontWeight: FontWeight.w500,
-      height: 1.3,
+      height: 1.2,
     ),
     bodyLarge: TextStyle(
       fontSize: 16,

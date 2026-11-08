@@ -8,7 +8,7 @@ It runs on Android 10 and later and on Windows 10 22H2 / 11 (x64), from one Flut
 
 Each [release](https://github.com/ForeverInLaw/cutcap/releases) has a `cutcap-setup-x.y.z.exe`. It installs cutcap for your user only, without admin rights, into `%LOCALAPPDATA%\Programs\cutcap`, adds a Start menu shortcut and offers cutcap under "Open with" for mp4, mov, mkv, webm, avi and m4v files without changing their default app. FFmpeg comes bundled. The installer is unsigned, so SmartScreen asks for confirmation the first time.
 
-You can add videos with Add video, by dropping them from Explorer onto the window, or with "Open with". Each "Open with" starts its own cutcap window, so a file opened that way while cutcap is running, or several files selected at once, do not join the edit already open; drag them onto the window instead to add them together.
+You can add videos with Add video, by dropping them from Explorer onto the window, or with "Open with". Each "Open with" starts its own cutcap window, so a file opened that way while cutcap is running, or several files selected at once, do not join the edit already open; drag them onto the window instead to add them together. Windows hands over several files picked or dropped together in its own order rather than the order you clicked them in, so reorder the clips on the track if it matters.
 
 ## Installing on Android
 

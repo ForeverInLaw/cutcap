@@ -329,9 +329,7 @@ class _MissingFilm extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = CutcapTokens.of(context);
     final l10n = AppLocalizations.of(context);
-    final style = Theme.of(
-      context,
-    ).textTheme.labelLarge!.copyWith(fontSize: 12);
+    final style = Theme.of(context).textTheme.titleSmall!;
     const iconSize = 14.0;
     final space = CutcapTokens.space;
 

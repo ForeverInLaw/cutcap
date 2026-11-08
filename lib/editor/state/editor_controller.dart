@@ -30,6 +30,9 @@ final class EditorController {
   _TrimDrag? _trim;
   ClipId? _reordering;
 
+  /// Counts [checkSources] calls, so only the latest one's answer is kept.
+  int _sourceCheck = 0;
+
   SessionNotifier get _session => _ref.read(sessionProvider.notifier);
   EditList get _list => _ref.read(sessionProvider).editList;
   Duration get _playhead => _ref.read(playheadProvider);
@@ -74,8 +77,15 @@ final class EditorController {
     if (_ref.read(missingSourcesProvider).isNotEmpty) await checkSources();
   }
 
-  void dismissImportProblems() =>
+  /// Hides the notice the status band shows: files that could not be
+  /// added first, then a problem with the autosaved edit.
+  void dismissNotice() {
+    if (_ref.read(importProblemsProvider).isNotEmpty) {
       _ref.read(importProblemsProvider.notifier).set(const []);
+    } else {
+      _ref.read(sessionProblemProvider.notifier).set(null);
+    }
+  }
 
   // Session ----------------------------------------------------------------
 
@@ -107,10 +117,14 @@ final class EditorController {
 
   /// Rechecks that every source file is still there, e.g. when the app
   /// comes back to the foreground; a file that came back is unflagged.
+  /// Checks may overlap (launch, resume, adding files); the one started
+  /// last decides, whichever finishes first.
   Future<void> checkSources() async {
+    final check = ++_sourceCheck;
     final exists = _ref.read(sourceExistsProvider);
     final sources = _list.sources.values.toList();
     final present = await Future.wait(sources.map((s) => exists(s.path)));
+    if (check != _sourceCheck) return;
     final missing = {
       for (final (i, source) in sources.indexed)
         if (!present[i]) source.id,
@@ -340,13 +354,6 @@ final class EditorController {
   /// Sets the playhead, kept inside the sequence, and shows its frame.
   void _seekTo(Duration time, {bool reveal = true}) {
     _setPlayhead(time, reveal: reveal);
-    // A clip whose file is gone has no frame to show; the player would
-    // only wait for it to load.
-    final clip = _list.locate(_playhead)?.clip;
-    if (clip != null &&
-        _ref.read(missingSourcesProvider).contains(clip.sourceId)) {
-      return;
-    }
     _ref.read(sequencePlaybackProvider).show(_list, _playhead);
   }
 

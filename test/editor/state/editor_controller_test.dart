@@ -98,7 +98,7 @@ void main() {
       expect(clipNames(), [_a.path, _b.path]);
       expect(container.read(importProblemsProvider), ['broken.mp4']);
 
-      editor.dismissImportProblems();
+      editor.dismissNotice();
       expect(container.read(importProblemsProvider), isEmpty);
     });
 

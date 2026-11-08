@@ -1,6 +1,9 @@
 // Seam 2 of the spec: real exports with the ffmpeg on PATH, checked with
-// ffprobe. Fixtures are generated with lavfi so the commands must also work
-// with the older distro ffmpeg on Ubuntu CI.
+// ffprobe. Fixtures are generated with lavfi. CI runs them on a pinned
+// static FFmpeg 9.0.2 (.github/workflows/ci.yml), where none may skip.
+@Tags(['ffmpeg'])
+library;
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -12,23 +15,22 @@ import 'package:cutcap/export/export_engine.dart';
 import 'package:cutcap/export/ffmpeg_export_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _tags = ['ffmpeg'];
+import '../support/ffmpeg_tools.dart';
 
 void main() {
-  final missing = ['ffmpeg', 'ffprobe'].where((tool) => !_runs(tool)).toList();
-  final skip = missing.isEmpty ? false : '${missing.join(' and ')} not on PATH';
+  final skip = ffmpegSkip();
 
   late Directory dir;
   late Fixtures fixtures;
 
   setUpAll(() async {
-    if (missing.isNotEmpty) return;
+    if (skip != false) return;
     dir = await Directory.systemTemp.createTemp('cutcap_export_');
     fixtures = await Fixtures.generate(dir);
   });
 
   tearDownAll(() async {
-    if (missing.isEmpty) await dir.delete(recursive: true);
+    if (skip == false) await dir.delete(recursive: true);
   });
 
   String output(String name) => '${dir.path}${Platform.pathSeparator}$name';
@@ -64,7 +66,6 @@ void main() {
       expect(result.frameRate, '30/1');
       result.expectDuration(const Duration(seconds: 5), fps: 30);
     },
-    tags: _tags,
     skip: skip,
   );
 
@@ -87,7 +88,6 @@ void main() {
       expect(result.frameRate, '60/1');
       result.expectDuration(const Duration(seconds: 2), fps: 60);
     },
-    tags: _tags,
     skip: skip,
   );
 
@@ -108,119 +108,91 @@ void main() {
       expect(result.frameRate, '25/1');
       result.expectDuration(const Duration(seconds: 3), fps: 25);
     },
-    tags: _tags,
     skip: skip,
   );
 
-  test(
-    'a rotated first clip exports upright',
-    () async {
-      final rotated = fixtures.vgaRotated;
-      if (rotated == null) {
-        markTestSkipped('this ffmpeg cannot tag a rotated fixture');
-        return;
-      }
-      final path = output('rotated.mp4');
+  test('a rotated first clip exports upright', () async {
+    final rotated = fixtures.vgaRotated;
+    if (rotated == null) return skipUnlessCi('cannot tag a rotated fixture');
+    final path = output('rotated.mp4');
 
-      final events = await export(
-        editOf([(rotated, 0, 1000), (fixtures.hd30, 0, 1000)]),
-        path,
-      );
+    final events = await export(
+      editOf([(rotated, 0, 1000), (fixtures.hd30, 0, 1000)]),
+      path,
+    );
 
-      expect(events.last, isA<ExportSucceeded>());
-      final result = await Probed.of(path);
-      expect(result.size, (width: 480, height: 640));
-      result.expectDuration(const Duration(seconds: 2), fps: 25);
-    },
-    tags: _tags,
-    skip: skip,
-  );
+    expect(events.last, isA<ExportSucceeded>());
+    final result = await Probed.of(path);
+    expect(result.size, (width: 480, height: 640));
+    result.expectDuration(const Duration(seconds: 2), fps: 25);
+  }, skip: skip);
 
-  test(
-    'cancel stops ffmpeg and leaves no file behind',
-    () async {
-      final path = output('cancelled.mp4');
-      final engine = FfmpegExportEngine(ffmpegPath: 'ffmpeg');
-      final events = <ExportEvent>[];
+  test('cancel stops ffmpeg and leaves no file behind', () async {
+    final path = output('cancelled.mp4');
+    final engine = FfmpegExportEngine(ffmpegPath: 'ffmpeg');
+    final events = <ExportEvent>[];
 
-      await for (final event in engine.export(
-        ExportJob(
-          editList: editOf([
-            for (var i = 0; i < 5; i++) (fixtures.hd30, 0, 4000),
-          ]),
-          outputPath: path,
-        ),
-      )) {
-        events.add(event);
-        if (event is ExportProgress) engine.cancel();
-      }
-
-      expect(events.last, isA<ExportCancelled>());
-      expect(File(path).existsSync(), isFalse);
-      expect(File('$path.part').existsSync(), isFalse);
-    },
-    tags: _tags,
-    skip: skip,
-  );
-
-  test(
-    'dropping the subscription stops the export like cancel',
-    () async {
-      final path = output('dropped.mp4');
-      final engine = FfmpegExportEngine(ffmpegPath: 'ffmpeg');
-      final job = ExportJob(
+    await for (final event in engine.export(
+      ExportJob(
         editList: editOf([
           for (var i = 0; i < 5; i++) (fixtures.hd30, 0, 4000),
         ]),
         outputPath: path,
-      );
+      ),
+    )) {
+      events.add(event);
+      if (event is ExportProgress) engine.cancel();
+    }
 
-      final progressed = Completer<void>();
-      final subscription = engine.export(job).listen((event) {
-        if (event is ExportProgress && !progressed.isCompleted) {
-          progressed.complete();
-        }
-      });
-      await progressed.future;
-      await subscription.cancel();
+    expect(events.last, isA<ExportCancelled>());
+    expect(File(path).existsSync(), isFalse);
+    expect(File('$path.part').existsSync(), isFalse);
+  }, skip: skip);
 
-      expect(File(path).existsSync(), isFalse);
-      expect(File('$path.part').existsSync(), isFalse);
-      // The engine is free for the next export.
-      expect(
-        await engine.export(job).firstWhere((e) => e is ExportProgress),
-        isA<ExportProgress>(),
-      );
-    },
-    tags: _tags,
-    skip: skip,
-  );
+  test('dropping the subscription stops the export like cancel', () async {
+    final path = output('dropped.mp4');
+    final engine = FfmpegExportEngine(ffmpegPath: 'ffmpeg');
+    final job = ExportJob(
+      editList: editOf([for (var i = 0; i < 5; i++) (fixtures.hd30, 0, 4000)]),
+      outputPath: path,
+    );
 
-  test(
-    'a source ffmpeg cannot read fails with its message',
-    () async {
-      final path = output('failed.mp4');
-      final broken = File(output('broken.mp4'))..writeAsStringSync('no video');
+    final progressed = Completer<void>();
+    final subscription = engine.export(job).listen((event) {
+      if (event is ExportProgress && !progressed.isCompleted) {
+        progressed.complete();
+      }
+    });
+    await progressed.future;
+    await subscription.cancel();
 
-      final events = await export(
-        editOf([(fixtures.hd30.copyAt(broken.path), 0, 1000)]),
-        path,
-      );
+    expect(File(path).existsSync(), isFalse);
+    expect(File('$path.part').existsSync(), isFalse);
+    // The engine is free for the next export.
+    expect(
+      await engine.export(job).firstWhere((e) => e is ExportProgress),
+      isA<ExportProgress>(),
+    );
+  }, skip: skip);
 
-      expect(
-        events.single,
-        isA<ExportFailed>().having(
-          (failed) => failed.reason,
-          'reason',
-          isNotEmpty,
-        ),
-      );
-      expect(File(path).existsSync(), isFalse);
-      expect(File('$path.part').existsSync(), isFalse);
-    },
-    tags: _tags,
-    skip: skip,
-  );
+  test('a source ffmpeg cannot read fails with its message', () async {
+    final path = output('failed.mp4');
+    final broken = File(output('broken.mp4'))..writeAsStringSync('no video');
+
+    final events = await export(
+      editOf([(fixtures.hd30.copyAt(broken.path), 0, 1000)]),
+      path,
+    );
+
+    expect(
+      events.single,
+      isA<ExportFailed>()
+          .having((failed) => failed.kind, 'kind', ExportFailure.failed)
+          .having((failed) => failed.detail, 'detail', isNotEmpty),
+    );
+    expect(File(path).existsSync(), isFalse);
+    expect(File('$path.part').existsSync(), isFalse);
+  }, skip: skip);
 }
 
 /// The generated sources, each as the media probe would describe it.
@@ -442,14 +414,6 @@ extension on Source {
 FrameRate _rate(String ratio) {
   final [numerator, denominator] = ratio.split('/').map(int.parse).toList();
   return FrameRate(numerator, denominator);
-}
-
-bool _runs(String tool) {
-  try {
-    return Process.runSync(tool, ['-version']).exitCode == 0;
-  } on ProcessException {
-    return false;
-  }
 }
 
 Future<int> _ffmpeg(List<String> arguments, {bool check = true}) async {

@@ -19,6 +19,8 @@ class ExportRequestTest {
         "frameRateNumerator" to 30000,
         "frameRateDenominator" to 1001,
         "videoBitRate" to 8000000,
+        "audioSampleRate" to 48000,
+        "audioBitRate" to 192000,
         "clips" to clips,
     )
 
@@ -29,6 +31,7 @@ class ExportRequestTest {
         assertEquals("beach-cut.mp4", request.name)
         assertEquals(1280 to 720, request.width to request.height)
         assertEquals(8000000, request.videoBitRate)
+        assertEquals(48000 to 192000, request.audioSampleRate to request.audioBitRate)
         assertEquals(
             listOf(
                 ExportRequest.Clip("content://media/external/video/media/1", 983334, 1983334),

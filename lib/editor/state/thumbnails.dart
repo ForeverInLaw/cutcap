@@ -5,24 +5,19 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../domain/editor_session.dart';
-import '../../media/android_thumbnail_source.dart';
-import '../../media/ffmpeg_thumbnail_source.dart';
-import '../../media/media_tools.dart';
 import '../../media/thumbnail_cache.dart';
 import '../../media/thumbnail_image.dart';
 import '../../media/thumbnail_source.dart';
-import '../../platform/android_documents.dart';
+import '../../platform/platform_services.dart';
 import '../editor_view_state.dart';
 import '../filmstrip.dart';
 
 /// Renders filmstrip thumbnails: ffmpeg on desktop, MediaMetadataRetriever
 /// on Android. Null when ffmpeg is missing; the filmstrip then keeps its
 /// solid frames.
-final thumbnailSourceProvider = Provider<ThumbnailSource?>((ref) {
-  if (Platform.isAndroid) return const AndroidThumbnailSource();
-  final ffmpeg = const MediaToolLocator().find(MediaTool.ffmpeg);
-  return ffmpeg == null ? null : FfmpegThumbnailSource(ffmpeg);
-});
+final thumbnailSourceProvider = Provider<ThumbnailSource?>(
+  (ref) => ref.watch(platformServicesProvider).thumbnailSource,
+);
 
 /// Thumbnails on disk in the app's cache directory.
 final thumbnailCacheProvider = Provider<ThumbnailCache?>((ref) {
@@ -33,7 +28,7 @@ final thumbnailCacheProvider = Provider<ThumbnailCache?>((ref) {
     directory: () async => Directory(
       p.join((await getApplicationCacheDirectory()).path, 'thumbnails'),
     ),
-    stamp: Platform.isAndroid ? AndroidDocuments.stamp : fileStamp,
+    stamp: ref.watch(platformServicesProvider).thumbnailStamp,
   );
 });
 

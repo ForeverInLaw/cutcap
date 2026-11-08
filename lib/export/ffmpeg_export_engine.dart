@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -12,21 +13,57 @@ import 'ffmpeg_progress.dart';
 /// export and reused for the engine's lifetime. ffmpeg writes to
 /// `<output>.part`, which becomes the output only when it succeeds.
 final class FfmpegExportEngine implements ExportEngine {
-  FfmpegExportEngine({required String ffmpegPath})
+  /// [encoders] probes with [ffmpegPath] unless given (tests).
+  FfmpegExportEngine({required String ffmpegPath, EncoderProbe? encoders})
     : _ffmpegPath = ffmpegPath,
-      _encoders = EncoderProbe(
-        (arguments) async =>
-            (await Process.run(ffmpegPath, arguments)).exitCode,
-      );
+      _encoders =
+          encoders ??
+          EncoderProbe(
+            (arguments) async =>
+                (await Process.run(ffmpegPath, arguments)).exitCode,
+          );
 
   final String _ffmpegPath;
   final EncoderProbe _encoders;
   _Run? _running;
 
   @override
-  Stream<ExportEvent> export(ExportJob job) async* {
-    if (_running != null) throw StateError('An export is already running.');
-    final run = _running = _Run();
+  Stream<ExportEvent> export(ExportJob job) {
+    // A controller rather than async*: an async* body only notices a
+    // cancelled subscription at its next yield, so a cancel during the
+    // encoder probe or before ffmpeg's first progress line would wait.
+    late final StreamController<ExportEvent> events;
+    _Run? run;
+    Future<void>? finished;
+    events = StreamController(
+      onListen: () {
+        if (_running != null) {
+          events.addError(StateError('An export is already running.'));
+          unawaited(events.close());
+          return;
+        }
+        final started = run = _running = _Run();
+        finished = _export(job, started, events.add).whenComplete(() {
+          _running = null;
+          unawaited(events.close());
+        });
+      },
+      // Waits until ffmpeg is gone and the partial file deleted.
+      onCancel: () {
+        run?.cancel();
+        return finished;
+      },
+    );
+    return events.stream;
+  }
+
+  /// Runs [job], reporting through [emit]; returns once ffmpeg has exited
+  /// and a partial file is gone.
+  Future<void> _export(
+    ExportJob job,
+    _Run run,
+    void Function(ExportEvent event) emit,
+  ) async {
     final partial = File('${job.outputPath}.part');
     var succeeded = false;
     try {
@@ -34,18 +71,11 @@ final class FfmpegExportEngine implements ExportEngine {
         job.editList,
         missingSources: job.missingSources,
       );
-      if (plan == null) {
-        yield nothingToExport;
-        return;
-      }
-      final encoder = await _encoders.encoder();
-      if (run.cancelled) {
-        yield const ExportCancelled();
-        return;
-      }
+      if (plan == null) return emit(nothingToExport);
+      final encoder = await run.unlessCancelled(_encoders.encoder());
+      if (run.cancelled) return emit(const ExportCancelled());
       if (encoder == null) {
-        yield ExportFailed('No H.264 encoder works with $_ffmpegPath.');
-        return;
+        return emit(const ExportFailed(ExportFailure.noEncoder));
       }
 
       final process = await Process.start(
@@ -56,28 +86,39 @@ final class FfmpegExportEngine implements ExportEngine {
       final errors = _lastLines(process.stderr, 10);
       await for (final line in _lines(process.stdout)) {
         if (progressFraction(line, plan.duration) case final fraction?) {
-          yield ExportProgress(fraction);
+          emit(ExportProgress(fraction));
         }
       }
       final exitCode = await process.exitCode;
-      if (run.cancelled) {
-        yield const ExportCancelled();
-        return;
-      }
+      if (run.cancelled) return emit(const ExportCancelled());
       if (exitCode != 0) {
         final reason = await errors;
-        yield ExportFailed(
-          reason.isEmpty ? 'ffmpeg exited with code $exitCode.' : reason,
+        return emit(
+          ExportFailed(
+            ExportFailure.failed,
+            detail: reason.isEmpty
+                ? 'ffmpeg exited with code $exitCode.'
+                : reason,
+          ),
         );
-        return;
       }
       await partial.rename(job.outputPath);
       succeeded = true;
-      yield ExportSucceeded(job.outputPath);
+      emit(ExportSucceeded(job.outputPath));
     } on ProcessException catch (error) {
-      yield ExportFailed('Could not run ${error.executable}: ${error.message}');
+      emit(
+        ExportFailed(
+          ExportFailure.cannotStart,
+          detail: '${error.executable}: ${error.message}',
+        ),
+      );
     } on FileSystemException catch (error) {
-      yield ExportFailed('Could not write ${job.outputPath}: ${error.message}');
+      emit(
+        ExportFailed(
+          ExportFailure.cannotWrite,
+          detail: '${job.outputPath}: ${error.message}',
+        ),
+      );
     } finally {
       // Also reached when the listener cancels mid-export. Wait for ffmpeg
       // to exit so Windows releases the partial file before it is deleted.
@@ -86,7 +127,6 @@ final class FfmpegExportEngine implements ExportEngine {
         await process.exitCode;
       }
       if (!succeeded && partial.existsSync()) await partial.delete();
-      _running = null;
     }
   }
 
@@ -98,6 +138,11 @@ final class FfmpegExportEngine implements ExportEngine {
 final class _Run {
   bool cancelled = false;
   Process? process;
+  final _cancel = Completer<void>();
+
+  /// [step]'s value, or null as soon as the run is cancelled.
+  Future<T?> unlessCancelled<T>(Future<T> step) =>
+      Future.any([step, _cancel.future.then((_) => null)]);
 
   /// Tracks [started]; kills it at once when cancel came first.
   void attach(Process started) {
@@ -108,6 +153,7 @@ final class _Run {
   void cancel() {
     cancelled = true;
     process?.kill();
+    if (!_cancel.isCompleted) _cancel.complete();
   }
 }
 

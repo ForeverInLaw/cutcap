@@ -9,16 +9,10 @@ import 'package:cutcap/media/ffmpeg_thumbnail_source.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-bool _runs(String tool) {
-  try {
-    return Process.runSync(tool, ['-version']).exitCode == 0;
-  } on ProcessException {
-    return false;
-  }
-}
+import '../support/ffmpeg_tools.dart';
 
 void main() {
-  final skip = _runs('ffmpeg') && _runs('ffprobe') ? false : 'no ffmpeg';
+  final skip = ffmpegSkip();
   late Directory dir;
   late String video;
 

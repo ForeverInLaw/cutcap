@@ -2,13 +2,11 @@ import '../domain/edit_list.dart';
 import '../domain/frame_rate.dart';
 import '../domain/source.dart';
 
-/// Audio sample rate of every export.
-const exportSampleRate = 48000;
-
 /// What an export produces, worked out from an [EditList] by the output rules
 /// of the spec and ADR 0002: the first clip's upright size and rate, its
-/// bitrate, and every clip snapped to whole output frames with the audio
-/// samples that match them.
+/// bitrate, AAC stereo audio at 48 kHz and 192 kb/s, and every clip snapped
+/// to whole output frames with the audio samples that match them. Both
+/// engines take every output setting from here.
 final class ExportPlan {
   const ExportPlan._({
     required this.size,
@@ -16,6 +14,12 @@ final class ExportPlan {
     required this.videoBitRate,
     required this.clips,
   });
+
+  /// Audio sample rate of every export (ADR 0002).
+  static const _audioSampleRate = 48000;
+
+  /// AAC bitrate of every export, in bits per second (ADR 0002).
+  static const _audioBitRate = 192000;
 
   /// The plan for [editList] without the clips whose source is in
   /// [missingSources], or null when no clip is left.
@@ -44,8 +48,8 @@ final class ExportPlan {
           duration: clip.duration,
           frames: frames,
           audioSamples:
-              _samplesIn(framesBefore + frames, rate) -
-              _samplesIn(framesBefore, rate),
+              _samplesIn(framesBefore + frames, rate, _audioSampleRate) -
+              _samplesIn(framesBefore, rate, _audioSampleRate),
           hasAudio: source.hasAudio,
         ),
       );
@@ -67,6 +71,12 @@ final class ExportPlan {
 
   /// Target video bitrate in bits per second.
   final int videoBitRate;
+
+  /// Output audio sample rate in Hz.
+  int get audioSampleRate => _audioSampleRate;
+
+  /// Target audio bitrate in bits per second.
+  int get audioBitRate => _audioBitRate;
 
   /// The clips to export, in sequence order.
   final List<PlannedClip> clips;
@@ -99,7 +109,7 @@ final class PlannedClip {
   /// Output frames the clip fills.
   final int frames;
 
-  /// Output audio samples (at [exportSampleRate]) the clip fills; silence
+  /// Output audio samples (at [ExportPlan.audioSampleRate]) the clip fills; silence
   /// when the source has no audio.
   final int audioSamples;
 
@@ -112,13 +122,11 @@ int _frameCount(Duration duration, FrameRate rate) => _roundedDivision(
   rate.denominator * Duration.microsecondsPerSecond,
 );
 
-/// Audio samples that play during the first [frames] output frames, rounded
-/// to the nearest. Counting from the start keeps rates like 29.97 from
-/// drifting clip by clip.
-int _samplesIn(int frames, FrameRate rate) => _roundedDivision(
-  frames * exportSampleRate * rate.denominator,
-  rate.numerator,
-);
+/// Audio samples at [sampleRate] that play during the first [frames]
+/// output frames, rounded to the nearest. Counting from the start keeps
+/// rates like 29.97 from drifting clip by clip.
+int _samplesIn(int frames, FrameRate rate, int sampleRate) =>
+    _roundedDivision(frames * sampleRate * rate.denominator, rate.numerator);
 
 /// `a / b` rounded half up, for non-negative `a` and positive `b`.
 int _roundedDivision(int a, int b) => (2 * a + b) ~/ (2 * b);
@@ -141,14 +149,8 @@ FrameRate _outputRate(Source source) {
       (average - nominal.perSecond).abs() <= nominal.perSecond * 0.001) {
     return nominal;
   }
-  final nearest = _standardRates.reduce(
-    (best, rate) =>
-        (rate - average).abs() < (best - average).abs() ? rate : best,
-  );
-  return FrameRate(nearest, 1);
+  return FrameRate.nearest(average, FrameRate.exportStandards)!;
 }
-
-const _standardRates = [24, 25, 30, 50, 60];
 
 /// The first clip's video bitrate, or an estimate of 0.1 bit per pixel when
 /// it is unknown, kept within 1 to 50 Mb/s.

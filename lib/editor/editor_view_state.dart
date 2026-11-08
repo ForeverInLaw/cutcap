@@ -12,7 +12,7 @@ final class EditorViewState {
     this.clips = const [],
     this.position = Duration.zero,
     this.window,
-    this.frameRate = const FrameRate(30, 1),
+    this.frameRate = emptyTrackFrameRate,
     this.outputSize,
     this.isPlaying = false,
     this.canSplit = false,
@@ -25,6 +25,7 @@ final class EditorViewState {
     this.export = const ExportIdle(),
     this.acceptsFileDrop = false,
     this.unreadableFiles = const [],
+    this.sessionProblem,
     this.isTrimming = false,
   });
 
@@ -37,8 +38,14 @@ final class EditorViewState {
   /// The part of the sequence the track shows; the whole sequence when null.
   final TimelineWindow? window;
 
-  /// Output frame rate (the first clip's), used for every timecode.
+  /// Output frame rate (the first clip's), used for every timecode;
+  /// [emptyTrackFrameRate] while the track is empty.
   final FrameRate frameRate;
+
+  /// The rate an empty track's timecode and ruler count in. Nothing is
+  /// timed in it (every time on screen is zero then); it only gives the
+  /// zero a frame field.
+  static const emptyTrackFrameRate = FrameRate(30, 1);
 
   /// Output frame size in pixels (the first clip's), for the status line.
   final Size? outputSize;
@@ -61,6 +68,10 @@ final class EditorViewState {
   /// Names of picked files that could not be opened; shown until dismissed.
   final List<String> unreadableFiles;
 
+  /// Something went wrong with the autosaved edit; shown until dismissed
+  /// (a failed save also until a later one works).
+  final SessionProblem? sessionProblem;
+
   /// A clip edge is being dragged: the track follows the pointer without
   /// animating.
   final bool isTrimming;
@@ -70,7 +81,9 @@ final class EditorViewState {
   /// Whether the status band shows a panel (export or a problem) rather
   /// than the resting summary.
   bool get showsStatusPanel =>
-      export is! ExportIdle || unreadableFiles.isNotEmpty;
+      export is! ExportIdle ||
+      unreadableFiles.isNotEmpty ||
+      sessionProblem != null;
 
   Duration get duration =>
       clips.fold(Duration.zero, (total, clip) => total + clip.duration);
@@ -152,8 +165,8 @@ final class ExportFailed extends ExportStatus {
   /// What went wrong, told to the user as a localized headline.
   final ExportProblem problem;
 
-  /// The exporter's own technical account (English, e.g. ffmpeg's last
-  /// lines), shown as secondary text under the headline.
+  /// The exporter's own technical account, untranslated (e.g. ffmpeg's
+  /// last lines), shown as secondary text under the headline.
   final String? detail;
 }
 
@@ -165,8 +178,48 @@ enum ExportProblem {
   /// The chosen file is one of the clips' sources.
   targetIsSource,
 
+  /// The source files of all clips are missing.
+  nothingToExport,
+
+  /// No H.264 encoder works on this device.
+  noEncoder,
+
+  /// The exporter did not start.
+  cannotStart,
+
+  /// The output could not be written or saved.
+  cannotWrite,
+
+  /// Another export is still running.
+  busy,
+
+  /// Android stopped the export before it was done.
+  stopped,
+
+  /// Android's daily time limit for exports ran out.
+  timeLimit,
+
   /// The exporter ran and failed; [ExportFailed.detail] says how.
   failed,
+}
+
+/// What went wrong with the autosaved edit.
+sealed class SessionProblem {
+  const SessionProblem();
+}
+
+/// The edit saved by the last run could not be read; the editor started
+/// empty. The file was set aside as [keptAs] (a file name), or could not be
+/// moved (null).
+final class SessionUnreadable extends SessionProblem {
+  const SessionUnreadable(this.keptAs);
+
+  final String? keptAs;
+}
+
+/// The latest autosave could not be written; the next edit tries again.
+final class SessionNotSaved extends SessionProblem {
+  const SessionNotSaved();
 }
 
 /// Everything the user can ask the editor to do. Availability lives in
@@ -194,7 +247,7 @@ final class EditorActions {
     required this.onReorderStart,
     required this.onReorderUpdate,
     required this.onReorderEnd,
-    required this.onDismissUnreadable,
+    required this.onDismissNotice,
     required this.onCancelExport,
     required this.onOpenExport,
     required this.onShareExport,
@@ -237,7 +290,10 @@ final class EditorActions {
   final ValueChanged<ClipId> onReorderStart;
   final ValueChanged<Duration> onReorderUpdate;
   final VoidCallback onReorderEnd;
-  final VoidCallback onDismissUnreadable;
+
+  /// Hides the notice the status band shows (files that could not be
+  /// added, a problem with the autosaved edit).
+  final VoidCallback onDismissNotice;
   final VoidCallback onCancelExport;
   final VoidCallback onOpenExport;
   final VoidCallback onShareExport;

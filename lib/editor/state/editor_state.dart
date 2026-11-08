@@ -1,20 +1,19 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../domain/editor_session.dart';
-import '../../media/android_media_probe.dart';
-import '../../media/ffprobe_media_probe.dart';
 import '../../media/media_probe.dart';
-import '../../platform/android_documents.dart';
+import '../../platform/platform_services.dart';
 import '../../player/media_kit_preview_player.dart';
 import '../../player/preview_player.dart';
 import '../../player/sequence_playback.dart';
 import '../../session/session_store.dart';
+import '../editor_view_state.dart';
 import 'timeline_zoom.dart';
 
 /// The edit and its undo history.
@@ -64,10 +63,12 @@ final launchFilesProvider = Provider<List<String>>((ref) => const []);
 /// Whether a source file is still there (on Android, still readable by its
 /// URI); tests override it.
 final sourceExistsProvider = Provider<Future<bool> Function(String path)>(
-  (ref) => Platform.isAndroid
-      ? AndroidDocuments.exists
-      : (path) => File(path).exists(),
+  (ref) => ref.watch(platformServicesProvider).sourceExists,
 );
+
+/// What went wrong with the autosaved edit, until dismissed.
+final sessionProblemProvider =
+    NotifierProvider<Slot<SessionProblem?>, SessionProblem?>(() => Slot(null));
 
 /// Names of the files the last add could not open.
 final importProblemsProvider =
@@ -89,40 +90,26 @@ final previewPlayerProvider = Provider<PreviewPlayer>((ref) {
 /// Reads the facts of a video: ffprobe on desktop, the platform's media
 /// framework on Android.
 final mediaProbeProvider = Provider<MediaProbe>(
-  (ref) => Platform.isAndroid
-      ? const AndroidMediaProbe()
-      : const FfprobeMediaProbe(),
+  (ref) => ref.watch(platformServicesProvider).mediaProbe,
 );
 
-/// Asks the user for videos; paths (Android: content URIs) come back in the
-/// picker's order.
+/// Asks the user for videos (see [PlatformServices.pickVideos]).
 final videoPickerProvider = Provider<Future<List<String>> Function()>(
-  (ref) => Platform.isAndroid ? AndroidDocuments.pick : _pickVideos,
+  (ref) => ref.watch(platformServicesProvider).pickVideos,
 );
 
 /// Videos shared into the app, a batch per share (Android "Share →
 /// cutcap"); never emits on desktop.
 final sharedVideosProvider = Provider<Stream<List<String>>>(
-  (ref) =>
-      Platform.isAndroid ? AndroidDocuments.shared() : const Stream.empty(),
+  (ref) => ref.watch(platformServicesProvider).sharedVideos,
 );
-
-Future<List<String>> _pickVideos() async {
-  const videos = XTypeGroup(
-    label: 'video',
-    extensions: ['mp4', 'mov', 'm4v', 'mkv', 'webm', 'avi', '3gp'],
-    mimeTypes: ['video/*'],
-    uniformTypeIdentifiers: ['public.movie'],
-  );
-  final files = await openFiles(acceptedTypeGroups: const [videos]);
-  return [for (final file in files) file.path];
-}
 
 /// Drives [previewPlayerProvider] along the sequence and feeds the playhead
 /// back while playing.
 final sequencePlaybackProvider = Provider<SequencePlayback>((ref) {
   final playback = SequencePlayback(
     ref.watch(previewPlayerProvider),
+    missingSources: () => ref.read(missingSourcesProvider),
     onPosition: (time) {
       ref.read(playheadProvider.notifier).set(time);
       ref.read(timelineZoomProvider.notifier).reveal(time);
@@ -175,7 +162,7 @@ final class SessionNotifier extends Notifier<EditorSession> {
   EditorSession build() {
     listenSelf((previous, next) {
       if (_autosaving && !identical(previous?.editList, next.editList)) {
-        unawaited(ref.read(sessionStoreProvider).save(next.editList));
+        unawaited(_save(next.editList));
       }
     });
     return const EditorSession();
@@ -183,12 +170,30 @@ final class SessionNotifier extends Notifier<EditorSession> {
 
   EditorSession get _base => _gestureOrigin ?? state;
 
-  /// Continues [saved] (when given and nothing has been edited yet) and
-  /// starts autosaving.
-  void restore(EditList? saved) {
+  /// Saves [list]; a failed save is told until a later one works.
+  Future<void> _save(EditList list) async {
+    final problem = ref.read(sessionProblemProvider.notifier);
+    try {
+      await ref.read(sessionStoreProvider).save(list);
+      if (ref.mounted && problem.state is SessionNotSaved) problem.set(null);
+    } on Object catch (error) {
+      debugPrint('cutcap: could not save the session: $error');
+      if (ref.mounted) problem.set(const SessionNotSaved());
+    }
+  }
+
+  /// Continues the [saved] edit (when there is one and nothing has been
+  /// edited yet) and starts autosaving. A saved edit that could not be read
+  /// is told.
+  void restore(SavedSession saved) {
     final untouched = state.editList.clips.isEmpty && !state.canUndo;
-    if (saved != null && untouched) {
-      state = EditorSession.restored(saved);
+    if (saved.editList case final list? when untouched) {
+      state = EditorSession.restored(list);
+    }
+    if (saved case UnreadableSession(:final keptAs)) {
+      ref
+          .read(sessionProblemProvider.notifier)
+          .set(SessionUnreadable(keptAs == null ? null : p.basename(keptAs)));
     }
     _autosaving = true;
   }

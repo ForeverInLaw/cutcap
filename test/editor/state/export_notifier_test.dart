@@ -4,6 +4,7 @@ import 'package:cutcap/domain/editor_session.dart';
 import 'package:cutcap/editor/editor_view_state.dart';
 import 'package:cutcap/editor/state/editor_state.dart';
 import 'package:cutcap/editor/state/export_notifier.dart';
+import 'package:cutcap/editor/state/view_state_provider.dart';
 import 'package:cutcap/export/export_engine.dart' as engine;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -96,6 +97,28 @@ void main() {
     expect(fake.jobs, isEmpty);
   });
 
+  test('is not offered, and does not start, when every file is gone', () async {
+    container.read(missingSourcesProvider.notifier).set({
+      _first.id,
+      _second.id,
+    });
+    expect(container.read(editorViewStateProvider).canExport, isFalse);
+
+    saveAnswers.add('D:/out/final.mp4');
+    await exporter().start();
+    expect(suggestedNames, isEmpty);
+    expect(fake.jobs, isEmpty);
+  });
+
+  test('is offered while one file is left, named after it', () async {
+    container.read(missingSourcesProvider.notifier).set({_first.id});
+    expect(container.read(editorViewStateProvider).canExport, isTrue);
+
+    saveAnswers.add(null);
+    await exporter().start();
+    expect(suggestedNames, ['b-cut.mp4']);
+  });
+
   test('suggests a name after the first clip', () async {
     saveAnswers.add(null);
     await exporter().start();
@@ -140,10 +163,15 @@ void main() {
           .having((s) => s.problem, 'problem', problem)
           .having((s) => s.detail, 'detail', detail);
 
-  test('reports a failure with the engine reason as its detail', () async {
+  test('reports a failure with the engine output as its detail', () async {
     saveAnswers.add('D:/out/final.mp4');
     await exporter().start();
-    await fake.finish(const engine.ExportFailed('Conversion failed!'));
+    await fake.finish(
+      const engine.ExportFailed(
+        engine.ExportFailure.failed,
+        detail: 'Conversion failed!',
+      ),
+    );
     await pumpEventQueue();
 
     expect(
@@ -152,10 +180,23 @@ void main() {
     );
   });
 
+  test('tells a known failure by its kind', () async {
+    saveAnswers.add('D:/out/final.mp4');
+    await exporter().start();
+    await fake.finish(
+      const engine.ExportFailed(engine.ExportFailure.noEncoder),
+    );
+    await pumpEventQueue();
+
+    expect(status(), failedWith(ExportProblem.noEncoder));
+  });
+
   test('retries a failed export to the same file without asking', () async {
     saveAnswers.add('D:/out/final.mp4');
     await exporter().start();
-    await fake.finish(const engine.ExportFailed('disk full'));
+    await fake.finish(
+      const engine.ExportFailed(engine.ExportFailure.cannotWrite),
+    );
     await pumpEventQueue();
 
     await exporter().retry();

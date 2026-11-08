@@ -1,64 +1,51 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../../export/android_export_engine.dart';
+import '../../domain/editor_session.dart';
 import '../../export/export_engine.dart' as engine;
-import '../../export/ffmpeg_export_engine.dart';
-import '../../media/media_tools.dart';
-import '../../platform/android_exports.dart';
-import '../../platform/open_file.dart';
+import '../../platform/platform_services.dart';
 import '../editor_view_state.dart';
 import 'editor_state.dart';
 
 /// The export engine for this app session: Media3 on Android; on desktop
 /// ffmpeg, or null when it is neither bundled nor on `PATH`. Kept for the
 /// session so the encoder is probed once.
-final exportEngineProvider = Provider<engine.ExportEngine?>((ref) {
-  if (Platform.isAndroid) return AndroidExportEngine();
-  final ffmpeg = const MediaToolLocator().find(MediaTool.ffmpeg);
-  return ffmpeg == null ? null : FfmpegExportEngine(ffmpegPath: ffmpeg);
-});
+final exportEngineProvider = Provider<engine.ExportEngine?>(
+  (ref) => ref.watch(platformServicesProvider).exportEngine,
+);
 
-/// Where the export goes, given [suggestedName]; null when the user backs
-/// out. Desktop asks with a Save as dialog; Android always saves under the
-/// suggested name in Movies/cutcap.
+/// Where the export goes, given the suggested name; null when the user
+/// backs out. Desktop asks with a Save as dialog; Android always saves
+/// under the suggested name in Movies/cutcap.
 final saveLocationProvider =
     Provider<Future<String?> Function(String suggestedName)>(
-      (ref) => Platform.isAndroid ? Future.value : _askSaveLocation,
+      (ref) => ref.watch(platformServicesProvider).saveLocation,
     );
 
 /// Opens a finished export (a path, on Android its URI) with the system's
 /// default app.
 final fileOpenerProvider = Provider<void Function(String path)>(
-  (ref) => Platform.isAndroid
-      ? (uri) => unawaited(AndroidExports.open(uri))
-      : openWithDefaultApp,
+  (ref) => ref.watch(platformServicesProvider).openFile,
 );
 
 /// Hands a finished export to the system share sheet; null where there is
 /// none (desktop), which also hides Share.
 final fileSharerProvider = Provider<void Function(String path)?>(
-  (ref) =>
-      Platform.isAndroid ? (uri) => unawaited(AndroidExports.share(uri)) : null,
+  (ref) => ref.watch(platformServicesProvider).shareFile,
 );
 
-Future<String?> _askSaveLocation(String suggestedName) async {
-  const mp4 = XTypeGroup(
-    label: 'MP4',
-    extensions: ['mp4'],
-    mimeTypes: ['video/mp4'],
-    uniformTypeIdentifiers: ['public.mpeg-4'],
-  );
-  final location = await getSaveLocation(
-    acceptedTypeGroups: const [mp4],
-    suggestedName: suggestedName,
-  );
-  return location?.path;
-}
+/// The source of the first clip whose file is still there: the export is
+/// named after it and takes its format; null when nothing can be exported.
+final exportSourceProvider = Provider<Source?>((ref) {
+  final list = ref.watch(sessionProvider.select((s) => s.editList));
+  final missing = ref.watch(missingSourcesProvider);
+  final clip = list.clips
+      .where((clip) => !missing.contains(clip.sourceId))
+      .firstOrNull;
+  return clip == null ? null : list.sourceOf(clip);
+});
 
 final exportProvider = NotifierProvider<ExportNotifier, ExportStatus>(
   ExportNotifier.new,
@@ -83,9 +70,8 @@ final class ExportNotifier extends Notifier<ExportStatus> {
 
   /// Asks where to save, then exports the edit there.
   Future<void> start() async {
-    final list = ref.read(sessionProvider).editList;
-    if (list.clips.isEmpty || state is ExportRunning) return;
-    final first = list.sourceOf(list.clips.first);
+    final first = ref.read(exportSourceProvider);
+    if (first == null || state is ExportRunning) return;
     final chosen = await ref.read(saveLocationProvider)(
       '${p.basenameWithoutExtension(first.name)}-cut.mp4',
     );
@@ -161,9 +147,9 @@ final class ExportNotifier extends Notifier<ExportStatus> {
             engine.ExportProgress(:final fraction) => ExportRunning(fraction),
             engine.ExportSucceeded(:final outputPath, :final displayName) =>
               _done(outputPath, displayName),
-            engine.ExportFailed(:final reason) => ExportFailed(
-              ExportProblem.failed,
-              detail: reason,
+            engine.ExportFailed(:final kind, :final detail) => ExportFailed(
+              _problemOf(kind),
+              detail: detail,
             ),
             engine.ExportCancelled() => const ExportIdle(),
           },
@@ -173,6 +159,18 @@ final class ExportNotifier extends Notifier<ExportStatus> {
           onDone: () => _run = null,
         );
   }
+
+  /// How the status band tells each engine failure.
+  static ExportProblem _problemOf(engine.ExportFailure kind) => switch (kind) {
+    engine.ExportFailure.nothingToExport => ExportProblem.nothingToExport,
+    engine.ExportFailure.noEncoder => ExportProblem.noEncoder,
+    engine.ExportFailure.cannotStart => ExportProblem.cannotStart,
+    engine.ExportFailure.cannotWrite => ExportProblem.cannotWrite,
+    engine.ExportFailure.busy => ExportProblem.busy,
+    engine.ExportFailure.stopped => ExportProblem.stopped,
+    engine.ExportFailure.timeLimit => ExportProblem.timeLimit,
+    engine.ExportFailure.failed => ExportProblem.failed,
+  };
 
   ExportDone _done(String output, String? displayName) {
     _output = output;

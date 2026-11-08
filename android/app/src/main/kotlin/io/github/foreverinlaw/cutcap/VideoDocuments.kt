@@ -49,7 +49,11 @@ class VideoDocuments(
         when (call.method) {
             "pick" -> pick(result)
             "exists" -> background(result) { VideoSource(activity, call.path()).canRead() }
-            "stamp" -> background(result) { VideoSource(activity, call.path()).stamp() }
+            // Null when the video is gone; a null stamp when nothing tells its versions apart.
+            "stamp" -> background(result) {
+                val video = VideoSource(activity, call.path())
+                if (video.canRead()) mapOf("stamp" to video.stamp()) else null
+            }
             "takeShared" -> result.success(drain())
             "listenShared" -> {
                 pushing = true
@@ -92,8 +96,16 @@ class VideoDocuments(
 
     // Sharing ----------------------------------------------------------------
 
-    /** Takes the videos of an `ACTION_SEND`/`ACTION_SEND_MULTIPLE` intent. */
+    /**
+     * Takes the videos of an `ACTION_SEND`/`ACTION_SEND_MULTIPLE` intent. The
+     * sender's extras and providers are not ours, so a share that fails to
+     * read is logged and dropped rather than taking the app down.
+     */
     fun onIntent(intent: Intent) {
+        guarded("taking a share") { take(intent) }
+    }
+
+    private fun take(intent: Intent) {
         val readGranted = (intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0
         val uris = shared(intent).filter { uri ->
             ShareFilter.accepts(uri.scheme, uri.authority, readGranted, ::isOwnAuthority).also {
@@ -139,10 +151,13 @@ class VideoDocuments(
         else -> emptyList()
     }
 
-    /** Swaps temporary URIs for durable ones off the main thread, then delivers. */
+    /**
+     * Swaps temporary URIs for durable ones off the main thread, then
+     * delivers; a URI whose provider fails is delivered as it came.
+     */
     private fun keep(uris: List<Uri>) = io.execute {
-        val kept = uris.map { durable(it) ?: it }.map(Uri::toString)
-        main.post { deliver(kept) }
+        val kept = uris.map { uri -> guarded("keeping $uri") { durable(uri) }.getOrNull() ?: uri }
+        main.post { deliver(kept.map(Uri::toString)) }
     }
 
     private fun deliver(uris: List<String>) {
@@ -153,13 +168,15 @@ class VideoDocuments(
 
     // Keeping access ----------------------------------------------------------
 
-    /** Keeps the grant across restarts; false when the sender did not allow it. */
-    private fun persist(uri: Uri): Boolean = try {
-        activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        true
-    } catch (_: SecurityException) {
-        false
-    }
+    /** Keeps the grant across restarts; false when the sender did not allow it (or it failed). */
+    private fun persist(uri: Uri): Boolean = guarded("persisting the grant for $uri") {
+        try {
+            activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            true
+        } catch (_: SecurityException) {
+            false
+        }
+    }.getOrDefault(false)
 
     /**
      * The same video's MediaStore URI, readable for as long as the video
@@ -169,11 +186,9 @@ class VideoDocuments(
         if (activity.contentResolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission }) return uri
         if (!hasVideoPermission()) return null
         if (uri.authority == MediaStore.AUTHORITY) return uri
-        val media = try {
+        // Null for a document MediaStore does not know.
+        val media = orNullIfRefused("find $uri in MediaStore") {
             if (DocumentsContract.isDocumentUri(activity, uri)) MediaStore.getMediaUri(activity, uri) else null
-        } catch (_: Exception) {
-            // Not a document MediaStore knows.
-            null
         } ?: sameVideoInMediaStore(uri)
         return media?.takeIf { VideoSource(activity, it.toString()).canRead() }
     }
@@ -181,12 +196,9 @@ class VideoDocuments(
     /** Looks the video up in MediaStore by its name and size. */
     private fun sameVideoInMediaStore(uri: Uri): Uri? {
         val resolver = activity.contentResolver
-        val nameAndSize: Pair<String, Long>? = try {
+        val nameAndSize: Pair<String, Long>? = orNullIfRefused("query $uri") {
             resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)
                 ?.use { if (it.moveToFirst() && !it.isNull(0)) it.getString(0) to it.getLong(1) else null }
-        } catch (_: Exception) {
-            // The sender's provider does not answer queries.
-            null
         }
         val (name, size) = nameAndSize ?: return null
         val collection = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
@@ -219,9 +231,12 @@ class VideoDocuments(
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
 
+    /** Runs [work] off the main thread; whatever a provider throws goes back to Dart as an error. */
     private fun background(result: MethodChannel.Result, work: () -> Any?) = io.execute {
-        val value = work()
-        main.post { result.success(value) }
+        val outcome = guarded("documents call") { work() }
+        main.post {
+            outcome.fold(result::success) { error -> result.error("provider_failed", error.toString(), null) }
+        }
     }
 
     private fun MethodCall.path(): String = argument<String>("path")!!

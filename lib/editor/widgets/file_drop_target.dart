@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import '../../theme/cutcap_tokens.dart';
 
 /// Takes files dragged from the desktop (Explorer) onto [child] and hands
-/// their paths to [onDrop] in drop order.
+/// their paths to [onDrop] in the order Explorer hands them over (its own
+/// order, not the order they were selected in).
 ///
 /// While files hover over it the whole window gets the hover overlay (ink
 /// at 6 %) inside a 1 px ink hairline, the empty state's drop-target

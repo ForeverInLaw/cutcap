@@ -76,6 +76,11 @@ typography:
     fontWeight: 700
     lineHeight: 1.2
     fontFeature: "\"tnum\""
+  label-chip:
+    fontFamily: "Golos Text"
+    fontSize: "12px"
+    fontWeight: 500
+    lineHeight: 1.2
   label-small:
     fontFamily: "Golos Text"
     fontSize: "11px"
@@ -149,6 +154,7 @@ components:
     backgroundColor: "{colors.workspace}"
     textColor: "{colors.ink}"
     rounded: "{rounded.none}"
+    typography: "{typography.label-chip}"
     padding: "4px 12px"
   status-band:
     textColor: "{colors.ink-secondary}"
@@ -217,7 +223,7 @@ State overlays derive from ink by opacity, not new hues: hover 6 %, focus 10 %, 
 ### Hierarchy
 - **Display, desktop** (700, 80 px, line-height 1, -3.2 px): the headline playhead timecode.
 - **Display, phone** (700, 44 px, line-height 1, -1.3 px): the same timecode on the phone.
-- **Total** (400, 28 px, line-height 1, -0.6 px): "/ total" beside the desktop timecode, on its baseline, in ink-muted. On the phone the total uses Body Large in ink-secondary.
+- **Total** (400, 28 px, line-height 1, -0.6 px): "/ total" beside the desktop timecode, on its baseline, in ink-muted; once the Shrink Whole Rule scales the pair down, it takes ink-secondary. On the phone the total uses Body Large in ink-secondary.
 - **Headline** (700, 32 px, 1.15, -0.8 px): the empty-state heading on desktop; **Headline, phone** (700, 24 px, 1.2, -0.5 px) on the phone.
 - **Wordmark** (700, 22 px, line-height 1, -0.66 px): lowercase "cutcap" in the top bar.
 - **Body Large** (400, 16 px, 1.4): the empty-state explanation, capped at 560 px wide.
@@ -225,6 +231,7 @@ State overlays derive from ink by opacity, not new hues: hover 6 %, focus 10 %, 
 - **Body Small** (400, 12 px, 1.3): the status summary, export detail lines, tooltips.
 - **Label** (500, 14 px, 1.2): button labels (700 on filled buttons) and export messages.
 - **Label Guide** (700, 12 px, 1.2, tabular): ruler guide words naming the first and last time in view; tick labels use the same size at 400 in ink-secondary.
+- **Label Chip** (500, 12 px, 1.2): "File not found" in the missing-file chip.
 - **Label Small** (500, 11 px, 1.2, +0.4 px): clip names; clip lengths at 400 in ink-secondary.
 
 ### Named Rules
@@ -300,11 +307,12 @@ Under a hairline ink rule, 64 px minimum on desktop. At rest (desktop only) it i
 
 ### States
 - **Empty:** the preview collapses; only the black bar remains. Desktop: a 32 px bold heading, a 16 px ink-secondary explanation (max 560 px), then a 1 px ink-outlined drop target filling the workspace with a filled Add video and the drop hint. Phone: 24 px heading and body at the top, a full-width filled Add video at the bottom within thumb reach. The bar hides its own Add video while the empty state shows one.
-- **Files dragged over (desktop):** the whole window takes the hover overlay (ink 6 %) inside a 1 px ink hairline, fading at 150 ms; dropping appends the files in drop order. No highlight and no drop while an export runs.
+- **Files dragged over (desktop):** the whole window takes the hover overlay (ink 6 %) inside a 1 px ink hairline, fading at 150 ms; dropping appends the files in the order Explorer hands them over. No highlight and no drop while an export runs.
 - **Exporting:** status band shows "Export n %" (tabular) and a 2 px square ink progress bar on an ink-muted 35 % track, with an outlined Cancel. Progress is not announced step by step. The track is locked until the export ends: adding, clearing and every edit tool are disabled (so the file matches what is on screen), while scrubbing and playback keep working. Cancel returns the band to rest.
 - **Export done:** ink check icon (20 px), message naming the file, filled Open, outlined Share (when sharing exists), plain close. Announced as a live region.
 - **Export failed:** ink error-outline icon (20 px), the reason in words, then in 12 px ink-secondary a line saying the edit is intact and the exporter's own technical message (ffmpeg's last lines, untranslated), filled Retry, plain close. No red.
-- **File not found clip:** the film area becomes 1 px ink diagonal hatching (45°, 7 px pitch) inside a 1 px ink border, with a centred graphite chip holding a link-off icon (14 px) and "File not found" in 12 px medium; when the clip is too narrow the chip shows the icon alone. The name and length stay above.
+- **Notices:** files that could not be added, a saved edit that could not be read at launch (kept aside under a new name) and an autosave that failed are told in the status band like an export failure: ink error-outline icon, the message in words, plain close. A failed autosave also clears itself once a later save works.
+- **File not found clip:** the film area becomes 1 px ink diagonal hatching (45°, 7 px pitch) inside a 1 px ink border, with a centred graphite chip holding a link-off icon (14 px) and "File not found" in Label Chip; when the clip is too narrow the chip shows the icon alone. The name and length stay above.
 - **Selected:** a 2 px ink frame around the film, fading in at 150 ms.
 - **Just edited:** a 3 px signal-red line along the film's base, fading in at 150 ms; it can coexist with the selected frame.
 - **Disabled controls:** 38 % ink content, 20 % ink outline; they keep their place so the row never reflows.

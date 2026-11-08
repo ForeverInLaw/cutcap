@@ -47,7 +47,7 @@ void main() {
       onReorderStart: (_) {},
       onReorderUpdate: (_) {},
       onReorderEnd: none,
-      onDismissUnreadable: none,
+      onDismissNotice: none,
       onCancelExport: none,
       onOpenExport: none,
       onShareExport: none,

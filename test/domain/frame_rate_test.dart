@@ -34,4 +34,25 @@ void main() {
       expect(ntsc.seekTarget(const Duration(microseconds: 1)), Duration.zero);
     });
   });
+
+  group('nearest', () {
+    test('picks the standard rate closest to a measured one', () {
+      expect(
+        FrameRate.nearest(25.28, FrameRate.exportStandards),
+        const FrameRate(25, 1),
+      );
+      expect(FrameRate.nearest(29.98, FrameRate.common), ntsc);
+    });
+
+    test('within a tolerance, finds none for a rate far from all', () {
+      expect(
+        FrameRate.nearest(30.3, FrameRate.common, tolerance: 0.02),
+        const FrameRate(30, 1),
+      );
+      expect(
+        FrameRate.nearest(18.5, FrameRate.common, tolerance: 0.02),
+        isNull,
+      );
+    });
+  });
 }

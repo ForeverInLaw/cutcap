@@ -56,7 +56,7 @@ class MediaChannel(private val context: Context) : MethodChannel.MethodCallHandl
             main.post { result.success(value) }
         } catch (error: Exception) {
             // The video's name goes along so the editor can name what failed.
-            val name = video.displayName()
+            val name = guarded("naming the video") { video.displayName() }.getOrNull()
             main.post { result.error("unreadable", error.toString(), name) }
         }
     }

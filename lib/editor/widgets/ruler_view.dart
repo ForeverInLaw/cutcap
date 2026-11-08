@@ -44,7 +44,7 @@ enum RulerLayer {
   /// Ticks, drawn under the playhead.
   ticks,
 
-  /// Guide words and tick labels on paper knockouts, drawn over the
+  /// Guide words and tick labels on workspace knockouts, drawn over the
   /// playhead so the red rule never runs through a time.
   labels,
 }
@@ -77,7 +77,7 @@ class RulerView extends StatelessWidget {
         RulerLayer.labels => _LabelPainter(
           window: window,
           rate: rate,
-          paper: tokens.workspace,
+          knockout: tokens.workspace,
           metrics: metrics,
           guideStyle: text.labelMedium!.copyWith(
             color: tokens.ink,
@@ -137,7 +137,7 @@ class _LabelPainter extends CustomPainter {
   _LabelPainter({
     required this.window,
     required this.rate,
-    required this.paper,
+    required this.knockout,
     required this.metrics,
     required this.guideStyle,
     required this.labelStyle,
@@ -147,7 +147,10 @@ class _LabelPainter extends CustomPainter {
 
   final TimelineWindow window;
   final FrameRate rate;
-  final Color paper;
+
+  /// Fill behind each label (the workspace colour), which cuts the
+  /// playhead rule.
+  final Color knockout;
   final RulerMetrics metrics;
   final TextStyle guideStyle;
   final TextStyle labelStyle;
@@ -189,7 +192,7 @@ class _LabelPainter extends CustomPainter {
         at.dx + text.width + 4,
         metrics.knockoutBottom,
       ),
-      Paint()..color = paper,
+      Paint()..color = knockout,
     );
     text
       ..paint(canvas, at + Offset(0, (metrics.labelLine - text.height) / 2))
@@ -207,7 +210,7 @@ class _LabelPainter extends CustomPainter {
   bool shouldRepaint(_LabelPainter old) =>
       old.window != window ||
       old.rate != rate ||
-      old.paper != paper ||
+      old.knockout != knockout ||
       old.metrics.labelLine != metrics.labelLine ||
       old.guideStyle != guideStyle ||
       old.labelStyle != labelStyle ||

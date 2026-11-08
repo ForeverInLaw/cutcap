@@ -50,18 +50,46 @@ final class ExportSucceeded extends ExportOutcome {
   final String? displayName;
 }
 
-/// Nothing was written. [reason] is meant for the person exporting, e.g.
-/// the last lines ffmpeg printed.
+/// Nothing was written, for the reason [kind] names. [detail] is the
+/// exporter's own technical account, untranslated (e.g. the last lines
+/// ffmpeg printed, or Media3's error code and causes), when there is one.
 final class ExportFailed extends ExportOutcome {
-  const ExportFailed(this.reason);
+  const ExportFailed(this.kind, {this.detail});
 
-  final String reason;
+  final ExportFailure kind;
+  final String? detail;
+}
+
+/// Why an export wrote nothing. The UI tells each in words of its own.
+enum ExportFailure {
+  /// The source files of all clips are missing.
+  nothingToExport,
+
+  /// No H.264 encoder works on this device.
+  noEncoder,
+
+  /// The exporter (ffmpeg, or Media3 and its service on Android) did not
+  /// start.
+  cannotStart,
+
+  /// The output could not be written (Android: saved to Movies/cutcap).
+  cannotWrite,
+
+  /// Another export is still running.
+  busy,
+
+  /// Android stopped the export before it was done.
+  stopped,
+
+  /// Android's daily time limit for exports ran out.
+  timeLimit,
+
+  /// The encoder ran and failed; [ExportFailed.detail] says how.
+  failed,
 }
 
 /// What every engine reports when no clip is left to export.
-const nothingToExport = ExportFailed(
-  'There is nothing to export: the source files of all clips are missing.',
-);
+const nothingToExport = ExportFailed(ExportFailure.nothingToExport);
 
 /// Stopped by [ExportEngine.cancel]; nothing was written.
 final class ExportCancelled extends ExportOutcome {

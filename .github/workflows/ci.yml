@@ -21,6 +21,14 @@ jobs:
     name: Format, analyze, test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # A static FFmpeg 9.0.2 (BtbN linux64 GPL, from a month-end autobuild,
+      # which BtbN keeps) for the `ffmpeg`-tagged export tests, the same
+      # release the Windows bundle pins (ADR 0002). The distro ffmpeg (6.x)
+      # cannot tag the rotated fixture. sha256 is GitHub's asset digest.
+      FFMPEG_VERSION: n9.0.2-39-g7adfbe40dc
+      FFMPEG_URL: https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-10-31-12-59/ffmpeg-n9.0.2-39-g7adfbe40dc-linux64-gpl-9.0.tar.xz
+      FFMPEG_SHA256: 73e29a56974ae5a651133a04584c7483b21afe941e17dc91d79814a758b608d3
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -38,15 +46,35 @@ jobs:
 
       - run: flutter analyze
 
-      # The distro ffmpeg (6.x on ubuntu-latest) for the `ffmpeg`-tagged
-      # export tests; without a GPU the encoder probe falls through to libx264.
-      - name: Install ffmpeg
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends ffmpeg
-          ffmpeg -hide_banner -version | head -n 1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: ffmpeg
+        with:
+          path: ${{ runner.temp }}/ffmpeg
+          key: ffmpeg-linux64-${{ env.FFMPEG_VERSION }}-${{ env.FFMPEG_SHA256 }}
 
-      - run: flutter test
+      - name: Fetch the pinned ffmpeg
+        if: steps.ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          archive="$RUNNER_TEMP/ffmpeg.tar.xz"
+          curl -fsSL --retry 3 -o "$archive" "$FFMPEG_URL"
+          echo "$FFMPEG_SHA256  $archive" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/ffmpeg"
+          tar -xJf "$archive" -C "$RUNNER_TEMP/ffmpeg" --strip-components=2 --wildcards '*/bin/ffmpeg' '*/bin/ffprobe'
+          rm "$archive"
+
+      # Without a GPU the encoder probe falls through to libx264. CI=true
+      # (set by Actions) makes the `ffmpeg`-tagged tests fail instead of
+      # skipping when the tools are missing or cannot make a fixture.
+      - name: Put ffmpeg on PATH
+        run: |
+          echo "$RUNNER_TEMP/ffmpeg" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/ffmpeg/ffmpeg" -hide_banner -version | head -n 1
+
+      - run: flutter test --exclude-tags ffmpeg
+
+      # Apart and expanded, so the log names each export test and shows that
+      # none was skipped.
+      - run: flutter test --tags ffmpeg --reporter expanded
 
   # Which platform builds a PR needs; pushes and tags decide by ref instead.
   # Add a filter here for every platform job.

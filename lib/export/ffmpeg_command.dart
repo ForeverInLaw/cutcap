@@ -37,7 +37,7 @@ List<String> ffmpegExportArguments(
   '-c:a',
   'aac',
   '-b:a',
-  '192k',
+  '${plan.audioBitRate ~/ 1000}k',
   '-movflags',
   '+faststart',
   '-f',
@@ -57,8 +57,9 @@ String _filterGraph(ExportPlan plan) {
     'setparams=range=tv:colorspace=bt709:color_primaries=bt709'
         ':color_trc=bt709',
   ].join(',');
-  const audio =
-      'aformat=sample_fmts=fltp:sample_rates=$exportSampleRate'
+  final sampleRate = plan.audioSampleRate;
+  final audio =
+      'aformat=sample_fmts=fltp:sample_rates=$sampleRate'
       ':channel_layouts=stereo';
 
   final chains = <String>[];
@@ -73,7 +74,7 @@ String _filterGraph(ExportPlan plan) {
       clip.hasAudio
           ? '[$i:a:0]atrim=duration=$duration,asetpts=PTS-STARTPTS,$audio,'
                 'apad=whole_len=$samples,atrim=end_sample=$samples[a$i]'
-          : 'anullsrc=r=$exportSampleRate:cl=stereo,$audio,'
+          : 'anullsrc=r=$sampleRate:cl=stereo,$audio,'
                 'atrim=end_sample=$samples[a$i]',
     );
   }

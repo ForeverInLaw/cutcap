@@ -1,6 +1,7 @@
 package io.github.foreverinlaw.cutcap
 
 import android.content.Context
+import android.database.Cursor
 import android.media.MediaExtractor
 import android.media.MediaMetadataRetriever
 import android.net.Uri
@@ -26,12 +27,9 @@ class VideoSource(private val context: Context, private val path: String) {
     /** Whether the video can still be read: present and access still granted. */
     fun canRead(): Boolean {
         if (uri == null) return File(path).canRead()
-        return try {
-            context.contentResolver.openFileDescriptor(uri, "r")?.use { true } ?: false
-        } catch (_: Exception) {
-            // Gone, or the grant was lost (FileNotFoundException, SecurityException).
-            false
-        }
+        return orNullIfRefused("open $uri") {
+            context.contentResolver.openFileDescriptor(uri, "r")?.use { true }
+        } ?: false
     }
 
     /** The name the system shows for the video, if it is known. */
@@ -43,13 +41,16 @@ class VideoSource(private val context: Context, private val path: String) {
         }
     }
 
-    /** Size and modification time, for the thumbnail cache; null when unreadable. */
+    /**
+     * Size and modification time, which tell the video's versions apart
+     * for the thumbnail cache; null when the provider reports either not,
+     * or the video cannot be read.
+     */
     fun stamp(): String? {
         if (uri == null) {
             val file = File(path)
             return if (file.canRead()) "${file.length()}|${file.lastModified()}" else null
         }
-        if (!canRead()) return null
         return query { cursor ->
             fun long(column: String) =
                 cursor.getColumnIndex(column).takeIf { it >= 0 && !cursor.isNull(it) }
@@ -57,16 +58,14 @@ class VideoSource(private val context: Context, private val path: String) {
             val size = long(OpenableColumns.SIZE)
             // Documents providers report milliseconds, MediaStore seconds.
             val modified = long("last_modified") ?: long(MediaStore.MediaColumns.DATE_MODIFIED)
-            "$size|$modified"
-        } ?: "readable"
+            if (size != null && modified != null) "$size|$modified" else null
+        }
     }
 
-    private fun <T> query(read: (android.database.Cursor) -> T?): T? = try {
+    private fun <T> query(read: (Cursor) -> T?): T? = orNullIfRefused("query $uri") {
         context.contentResolver.query(uri!!, null, null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) read(cursor) else null
         }
-    } catch (_: Exception) {
-        // A provider that refuses the query; the caller falls back.
-        null
     }
 }
+

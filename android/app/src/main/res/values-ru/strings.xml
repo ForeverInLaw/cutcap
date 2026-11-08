@@ -6,4 +6,8 @@
     <string name="export_saved">Сохранено в Movies/cutcap</string>
     <string name="export_failed">Экспорт не удался</string>
     <string name="export_edit_intact">Монтаж не пострадал.</string>
+    <string name="export_cannot_start">Не удалось запустить экспорт.</string>
+    <string name="export_cannot_write">Не удалось сохранить видео в Movies/cutcap.</string>
+    <string name="export_stopped">Android остановил экспорт.</string>
+    <string name="export_time_limit">Android остановил экспорт: на сегодня время для экспорта исчерпано.</string>
 </resources>
