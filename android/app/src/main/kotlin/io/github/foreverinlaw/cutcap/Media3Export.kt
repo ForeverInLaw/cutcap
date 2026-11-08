@@ -34,10 +34,10 @@ import java.io.File
  * - frames above the output rate dropped (Media3 does not repeat frames, so
  *   a slower clip keeps its own rate);
  * - silence for clips without audio (the sequence always carries audio),
- *   resampled to 48 kHz stereo;
+ *   resampled to the planned rate in stereo;
  * - HDR sources tone-mapped to SDR (the Windows export does not tone-map,
  *   ADR 0002 and 0004);
- * - the platform's (hardware) encoders, at the planned bitrate.
+ * - the platform's (hardware) encoders, at the planned bitrates.
  *
  * Create, [start], poll [progress] and [cancel] on the main thread.
  */
@@ -61,7 +61,7 @@ class Media3Export(
                     VideoEncoderSettings.Builder().setBitrate(request.videoBitRate).build(),
                 )
                 .setRequestedAudioEncoderSettings(
-                    AudioEncoderSettings.Builder().setBitrate(AUDIO_BIT_RATE).build(),
+                    AudioEncoderSettings.Builder().setBitrate(request.audioBitRate).build(),
                 )
                 .build(),
         )
@@ -117,9 +117,9 @@ class Media3Export(
         Presentation.createForWidthAndHeight(request.width, request.height, Presentation.LAYOUT_SCALE_TO_FIT),
     )
 
-    /** 48 kHz stereo, whatever the first clip had (later clips are converted to it by Media3). */
+    /** The planned rate in stereo, whatever the first clip had (later clips are converted to it by Media3). */
     private fun audioToOutputFormat(): List<AudioProcessor> {
-        val resample = SonicAudioProcessor().apply { setOutputSampleRateHz(AUDIO_SAMPLE_RATE) }
+        val resample = SonicAudioProcessor().apply { setOutputSampleRateHz(request.audioSampleRate) }
         val stereo = ChannelMixingAudioProcessor().apply {
             // Mono plays on both sides at full level, as ffmpeg upmixes it;
             // surround folds down keeping its power.
@@ -133,9 +133,6 @@ class Media3Export(
     }
 
     private companion object {
-        const val AUDIO_SAMPLE_RATE = 48_000
-        const val AUDIO_BIT_RATE = 192_000
-
         /** The most channels Media3 has a default stereo fold-down for (5.1). */
         const val MAX_INPUT_CHANNELS = 6
     }

@@ -85,6 +85,8 @@ final class AndroidExportEngine implements ExportEngine {
     'frameRateNumerator': plan.frameRate.numerator,
     'frameRateDenominator': plan.frameRate.denominator,
     'videoBitRate': plan.videoBitRate,
+    'audioSampleRate': plan.audioSampleRate,
+    'audioBitRate': plan.audioBitRate,
     'clips': [
       for (final clip in plan.clips)
         {

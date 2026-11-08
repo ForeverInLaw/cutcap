@@ -113,6 +113,8 @@ void main() {
       'frameRateNumerator': 30,
       'frameRateDenominator': 1,
       'videoBitRate': 8000000,
+      'audioSampleRate': 48000,
+      'audioBitRate': 192000,
       'clips': [
         // Each clip starts half a frame before its in point (ADR 0002) and
         // lasts as long as it does on the track.
