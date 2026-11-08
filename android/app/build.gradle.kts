@@ -31,13 +31,25 @@ android {
             // over the last; locally the SDK's own debug key is used.
             System.getenv("CUTCAP_DEBUG_KEYSTORE")?.let { storeFile = file(it) }
         }
+        // The persistent release key. CI decodes the ANDROID_KEYSTORE_BASE64
+        // secret into the file at ANDROID_KEYSTORE_PATH and passes the other
+        // three secrets through (docs/android-release.md).
+        System.getenv("ANDROID_KEYSTORE_PATH")?.let { keystore ->
+            create("release") {
+                fun secret(name: String) = requireNotNull(System.getenv(name)) { "$name is not set" }
+                storeFile = file(keystore)
+                storePassword = secret("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = secret("ANDROID_KEY_ALIAS")
+                keyPassword = secret("ANDROID_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Without the release key (local builds) the debug key signs, so
+            // `flutter run --release` works; CI refuses to publish such an APK.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }
@@ -53,6 +65,11 @@ flutter {
 }
 
 dependencies {
+    // Export (Media3Export.kt): Transformer brings the effect, muxer and
+    // ExoPlayer modules it needs.
+    implementation("androidx.media3:media3-transformer:1.11.1")
+    implementation("androidx.media3:media3-effect:1.11.1")
+    implementation("androidx.media3:media3-common:1.11.1")
     // Kotlin unit tests (`./gradlew :app:testDebugUnitTest`), run in CI.
     testImplementation("junit:junit:4.13.2")
 }

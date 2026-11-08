@@ -55,13 +55,18 @@ void main() {
   late List<String?> saveAnswers;
   late List<String> suggestedNames;
   late List<String> opened;
+  late List<String> shared;
 
   ExportStatus status() => container.read(exportProvider);
   ExportNotifier exporter() => container.read(exportProvider.notifier);
 
-  ProviderContainer containerWith({engine.ExportEngine? exportEngine}) {
+  ProviderContainer containerWith({
+    engine.ExportEngine? exportEngine,
+    bool canShare = false,
+  }) {
     final created = ProviderContainer.test(
       overrides: [
+        fileSharerProvider.overrideWithValue(canShare ? shared.add : null),
         exportEngineProvider.overrideWithValue(exportEngine),
         saveLocationProvider.overrideWithValue((suggestedName) async {
           suggestedNames.add(suggestedName);
@@ -79,6 +84,7 @@ void main() {
     saveAnswers = [];
     suggestedNames = [];
     opened = [];
+    shared = [];
     container = containerWith(exportEngine: fake);
   });
 
@@ -205,5 +211,48 @@ void main() {
 
     exporter().dismiss();
     expect(status(), isA<ExportIdle>());
+  });
+
+  group('where the platform saves the export itself (Android)', () {
+    const savedUri = 'content://media/external/video/media/99';
+
+    setUp(() async {
+      container = containerWith(exportEngine: fake, canShare: true);
+      saveAnswers.add('beach day-cut.mp4');
+      await exporter().start();
+      await fake.finish(
+        const engine.ExportSucceeded(
+          savedUri,
+          displayName: 'beach day-cut (1).mp4',
+        ),
+      );
+      await pumpEventQueue();
+    });
+
+    test('names the saved video as the system does and offers Share', () {
+      expect(
+        status(),
+        isA<ExportDone>()
+            .having((s) => s.fileName, 'fileName', 'beach day-cut (1).mp4')
+            .having((s) => s.canShare, 'canShare', true),
+      );
+    });
+
+    test('opens and shares the saved video', () {
+      exporter()
+        ..open()
+        ..share();
+
+      expect(opened, [savedUri]);
+      expect(shared, [savedUri]);
+    });
+
+    test('shares nothing once the outcome is dismissed', () {
+      exporter()
+        ..dismiss()
+        ..share();
+
+      expect(shared, isEmpty);
+    });
   });
 }

@@ -67,8 +67,7 @@ class EditorPage extends ConsumerWidget {
     onDismissUnreadable: editor.dismissImportProblems,
     onCancelExport: export.cancel,
     onOpenExport: export.open,
-    // Android only, with CUTCAP-10; Windows never offers Share.
-    onShareExport: () {},
+    onShareExport: export.share,
     onRetryExport: () => unawaited(export.retry()),
     onDismissExport: export.dismiss,
   );

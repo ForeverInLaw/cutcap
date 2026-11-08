@@ -4,16 +4,19 @@ import android.content.Intent
 import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 /**
  * The editor. Hosts the platform channels the Dart side talks to and feeds
  * "Share → cutcap" intents to [VideoDocuments]: the one that started the
  * activity, then each one that reaches the running instance (singleTask).
+ * Exports run in [ExportService], outside the activity.
  */
 class MainActivity : FlutterActivity() {
     private var media: MediaChannel? = null
     private var documents: VideoDocuments? = null
+    private var export: ExportChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -23,6 +26,10 @@ class MainActivity : FlutterActivity() {
         }
         val documentsChannel = MethodChannel(messenger, "io.github.foreverinlaw.cutcap/documents")
         documents = VideoDocuments(this, documentsChannel).also(documentsChannel::setMethodCallHandler)
+        export = ExportChannel(this).also {
+            MethodChannel(messenger, "io.github.foreverinlaw.cutcap/export").setMethodCallHandler(it)
+            EventChannel(messenger, "io.github.foreverinlaw.cutcap/export/run").setStreamHandler(it)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +68,7 @@ class MainActivity : FlutterActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         media?.dispose()
         documents?.dispose()
+        export?.dispose()
         super.cleanUpFlutterEngine(flutterEngine)
     }
 }

@@ -151,9 +151,10 @@ jobs:
           if-no-files-found: error
 
   # Debug APK for device checks (arm64 only: every supported phone, and a
-  # third of the size). The signed release APK is CUTCAP-10's.
+  # third of the size); on v* tags the release APK instead, signed with the
+  # persistent release key from the repository secrets.
   android:
-    name: Android debug APK
+    name: Android APK
     needs: [check, changes]
     # Gated like `windows`.
     if: >-
@@ -177,8 +178,9 @@ jobs:
           java-version: '17'
 
       # Caches the Gradle home (wrapper, dependencies, build cache). No
-      # configuration cache: Flutter 3.44's Gradle plugin cannot be stored
-      # in it (its :app:DebugMinSdkCheck task holds a WeakHashMap).
+      # configuration cache, which the spec asks for: Flutter 3.44's Gradle
+      # plugin cannot be stored in it (its :app:DebugMinSdkCheck task holds a
+      # WeakHashMap) and the build fails with it on.
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
@@ -194,21 +196,67 @@ jobs:
       # passwords and alias are the SDK debug key's defaults, which the
       # debug signing config keeps (android/app/build.gradle.kts).
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         id: debug-key
         with:
           path: ${{ runner.temp }}/cutcap-debug.keystore
           key: android-debug-keystore-v1
 
-      - if: steps.debug-key.outputs.cache-hit != 'true'
+      - if: ${{ !startsWith(github.ref, 'refs/tags/v') && steps.debug-key.outputs.cache-hit != 'true' }}
         run: >-
           keytool -genkeypair -keystore "$RUNNER_TEMP/cutcap-debug.keystore"
           -storepass android -alias androiddebugkey -keypass android
           -keyalg RSA -keysize 2048 -validity 10000
           -dname "CN=Android Debug,O=Android,C=US"
 
-      - run: flutter build apk --debug --target-platform android-arm64
+      - if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: flutter build apk --debug --target-platform android-arm64
         env:
           CUTCAP_DEBUG_KEYSTORE: ${{ runner.temp }}/cutcap-debug.keystore
+
+      # The release key: the owner sets the four secrets once (see
+      # docs/android-release.md). A release is never signed with anything
+      # else, so missing secrets fail here rather than later.
+      - name: Decode release keystore
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=()
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repository secrets for the release key: ${missing[*]} (docs/android-release.md)"
+            exit 1
+          fi
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/cutcap-release.keystore"
+
+      # Phones only (32- and 64-bit ARM); x86_64 would only serve emulators.
+      - name: Build release APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: release-apk
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/cutcap-release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          flutter build apk --release --target-platform android-arm,android-arm64
+          version=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)
+          apk="build/app/outputs/flutter-apk/cutcap-$version.apk"
+          mv build/app/outputs/flutter-apk/app-release.apk "$apk"
+          # Refuse an APK the debug key signed (the Gradle fallback).
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)
+          certs=$("$apksigner" verify --print-certs "$apk")
+          if grep -q 'CN=Android Debug' <<<"$certs"; then
+            echo "::error::$apk is signed with a debug key"
+            exit 1
+          fi
+          echo "path=$apk" >> "$GITHUB_OUTPUT"
 
       # Kotlin unit tests; the APK build above wrote local.properties and
       # the Gradle wrapper.
@@ -216,17 +264,26 @@ jobs:
         working-directory: android
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         with:
           name: cutcap-android-debug
           path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 7
           if-no-files-found: error
 
-  # A v* tag publishes the installer. The tag must match pubspec.yaml's
-  # version. CUTCAP-10 adds the Android job to `needs` and its APK here.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: cutcap-android
+          path: ${{ steps.release-apk.outputs.path }}
+          retention-days: 7
+          if-no-files-found: error
+
+  # A v* tag publishes the installer and the APK. The tag must match
+  # pubspec.yaml's version.
   release:
     name: GitHub Release
-    needs: [windows]
+    needs: [windows, android]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -238,17 +295,25 @@ jobs:
           name: cutcap-windows
           path: dist
 
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cutcap-android
+          path: dist
+
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
           installer="dist/cutcap-setup-${TAG#v}.exe"
-          if [ ! -f "$installer" ]; then
-            echo "::error::Tag $TAG does not match pubspec.yaml's version (built: $(ls dist))"
-            exit 1
-          fi
-          gh release create "$TAG" "$installer" \
+          apk="dist/cutcap-${TAG#v}.apk"
+          for file in "$installer" "$apk"; do
+            if [ ! -f "$file" ]; then
+              echo "::error::Tag $TAG does not match pubspec.yaml's version (built: $(ls dist))"
+              exit 1
+            fi
+          done
+          gh release create "$TAG" "$installer" "$apk" \
             --repo "$GITHUB_REPOSITORY" \
             --title "cutcap ${TAG#v}" \
             --generate-notes \
