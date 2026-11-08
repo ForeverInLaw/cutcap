@@ -312,7 +312,11 @@ jobs:
   release:
     name: GitHub Release
     needs: [windows, android]
-    if: startsWith(github.ref, 'refs/tags/v')
+    # `changes` is skipped on tags, so the implicit success() would skip this
+    # job too; check the two builds explicitly instead.
+    if: >-
+      !cancelled() && startsWith(github.ref, 'refs/tags/v') &&
+      needs.windows.result == 'success' && needs.android.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
