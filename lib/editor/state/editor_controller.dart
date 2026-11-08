@@ -30,6 +30,9 @@ final class EditorController {
   _TrimDrag? _trim;
   ClipId? _reordering;
 
+  /// Counts [checkSources] calls, so only the latest one's answer is kept.
+  int _sourceCheck = 0;
+
   SessionNotifier get _session => _ref.read(sessionProvider.notifier);
   EditList get _list => _ref.read(sessionProvider).editList;
   Duration get _playhead => _ref.read(playheadProvider);
@@ -114,10 +117,14 @@ final class EditorController {
 
   /// Rechecks that every source file is still there, e.g. when the app
   /// comes back to the foreground; a file that came back is unflagged.
+  /// Checks may overlap (launch, resume, adding files); the one started
+  /// last decides, whichever finishes first.
   Future<void> checkSources() async {
+    final check = ++_sourceCheck;
     final exists = _ref.read(sourceExistsProvider);
     final sources = _list.sources.values.toList();
     final present = await Future.wait(sources.map((s) => exists(s.path)));
+    if (check != _sourceCheck) return;
     final missing = {
       for (final (i, source) in sources.indexed)
         if (!present[i]) source.id,

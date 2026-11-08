@@ -41,30 +41,45 @@ void main() {
   late File file;
   late FakePreviewPlayer player;
   late Set<String> onDisk;
+  late List<SessionStore> stores;
 
   setUp(() async {
     dir = await Directory.systemTemp.createTemp('cutcap_restore_');
     file = File(p.join(dir.path, 'session.json'));
     player = FakePreviewPlayer();
     onDisk = {_a.path, _b.path, _c.path};
+    stores = [];
   });
 
-  tearDown(() => dir.delete(recursive: true));
+  // Autosaves are not awaited by the edits that start them; one still
+  // writing into the folder would make deleting it fail.
+  tearDown(() async {
+    for (final store in stores) {
+      await store.flush();
+    }
+    await dir.delete(recursive: true);
+  });
 
   /// A fresh launch of the editor over the same session file, or over
-  /// [store].
-  ProviderContainer launch({SessionStore? store}) => ProviderContainer.test(
-    overrides: [
-      previewPlayerProvider.overrideWithValue(player as PreviewPlayer),
-      mediaProbeProvider.overrideWithValue(_FakeProbe()),
-      sessionStoreProvider.overrideWithValue(
-        store ?? SessionStore(() async => file),
-      ),
-      sourceExistsProvider.overrideWithValue(
-        (path) async => onDisk.contains(path),
-      ),
-    ],
-  );
+  /// [store]; source files exist when [exists] says so, by default when
+  /// they are [onDisk].
+  ProviderContainer launch({
+    SessionStore? store,
+    Future<bool> Function(String path)? exists,
+  }) {
+    final used = store ?? SessionStore(() async => file);
+    stores.add(used);
+    return ProviderContainer.test(
+      overrides: [
+        previewPlayerProvider.overrideWithValue(player as PreviewPlayer),
+        mediaProbeProvider.overrideWithValue(_FakeProbe()),
+        sessionStoreProvider.overrideWithValue(used),
+        sourceExistsProvider.overrideWithValue(
+          exists ?? (path) async => onDisk.contains(path),
+        ),
+      ],
+    );
+  }
 
   /// Each clip as (file, in ms, out ms).
   List<(String, int, int)> spans(ProviderContainer container) {
@@ -206,12 +221,14 @@ void main() {
         container.read(editorViewStateProvider).sessionProblem;
 
     await editor.addFiles([_a.path]);
+    final store = container.read(sessionStoreProvider);
+    await expectLater(store.flush(), throwsA(isA<FileSystemException>()));
     await pumpEventQueue();
     expect(problem(), isA<SessionNotSaved>());
 
     blocker.deleteSync();
     await editor.addFiles([_b.path]);
-    await container.read(sessionStoreProvider).flush();
+    await store.flush();
     await pumpEventQueue();
     expect(problem(), isNull);
   });
@@ -265,6 +282,25 @@ void main() {
       onDisk.add(_a.path);
       await editor.checkSources();
       expect(container.read(missingSourcesProvider), isEmpty);
+    });
+
+    test('is judged by the latest check when checks overlap', () async {
+      final answers = <Completer<bool>>[];
+      final container = launch(
+        exists: (path) => (answers..add(Completer())).last.future,
+      );
+      final editor = container.read(editorControllerProvider);
+      await editor.restoreSession();
+      await editor.addFiles([_a.path]);
+
+      final earlier = editor.checkSources();
+      final later = editor.checkSources();
+      answers[1].complete(false);
+      await later;
+      answers[0].complete(true);
+      await earlier;
+
+      expect(container.read(missingSourcesProvider), {_a.id});
     });
   });
 }
