@@ -123,6 +123,7 @@ Future<List<String>> _pickVideos() async {
 final sequencePlaybackProvider = Provider<SequencePlayback>((ref) {
   final playback = SequencePlayback(
     ref.watch(previewPlayerProvider),
+    missingSources: () => ref.read(missingSourcesProvider),
     onPosition: (time) {
       ref.read(playheadProvider.notifier).set(time);
       ref.read(timelineZoomProvider.notifier).reveal(time);

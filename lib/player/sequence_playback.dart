@@ -15,9 +15,13 @@ import 'preview_player.dart';
 /// Sequence time flows out through [onPosition] while playing; [onEnded]
 /// fires when playback stops by itself at either end of the sequence;
 /// [onUnplayable] names a file the player could not open.
+///
+/// Clips whose source is in [missingSources] have nothing to show: playback
+/// goes over them either way, and the player is never asked to open them.
 final class SequencePlayback {
   SequencePlayback(
     this._player, {
+    required this.missingSources,
     required this.onPosition,
     required this.onEnded,
     required this.onUnplayable,
@@ -29,6 +33,9 @@ final class SequencePlayback {
   }
 
   final PreviewPlayer _player;
+
+  /// Sources whose file is gone, read afresh at each step.
+  final Set<SourceId> Function() missingSources;
   final void Function(Duration sequenceTime) onPosition;
   final void Function() onEnded;
   final void Function(String path) onUnplayable;
@@ -52,34 +59,47 @@ final class SequencePlayback {
   /// Shows the frame under sequence [time], paused.
   void show(EditList list, Duration time) {
     final hit = list.locate(time);
-    if (hit == null) return;
+    if (hit == null || _isMissing(hit.clip)) return;
     _request(_Target(list.sourceOf(hit.clip).path, hit.seekTime));
   }
 
   /// Shows the frame of [source] under [sourceTime], paused, e.g. the frame
   /// under a clip edge being trimmed.
-  void showSource(Source source, Duration sourceTime) =>
-      _request(_Target(source.path, source.frameRate.seekTarget(sourceTime)));
+  void showSource(Source source, Duration sourceTime) {
+    if (missingSources().contains(source.id)) return;
+    _request(_Target(source.path, source.frameRate.seekTarget(sourceTime)));
+  }
 
   /// Plays forward from sequence time [from]; from the start when [from] is
-  /// at or past the end.
+  /// at or past the end. From inside a missing clip it starts at the next
+  /// present one, or ends at once when there is none.
   Future<void> play(EditList list, Duration from) async {
     _stopReverse();
     final start = list.locate(from) ?? list.locate(Duration.zero);
     if (start == null) return;
-    _run = _Run(list, start.clip);
-    _request(
-      _Target(list.sourceOf(start.clip).path, start.seekTime, play: true),
-    );
+    if (!_isMissing(start.clip)) {
+      _run = _Run(list, start.clip);
+      _request(
+        _Target(list.sourceOf(start.clip).path, start.seekTime, play: true),
+      );
+      return;
+    }
+    final next = _presentAfter(list, start.clip);
+    if (next == null) return _end(list);
+    final run = _Run(list, next);
+    _run = run;
+    onPosition(run.start);
+    _requestClip(run);
   }
 
   /// Plays backwards from sequence time [from] by seeking along in real
-  /// time, latest frame first, until the start of the sequence.
+  /// time, latest frame first, until the start of the sequence. A step into
+  /// a missing clip goes on from the end of the clip before it.
   void reverse(EditList list, Duration from) {
     unawaited(pause());
     var time = from > list.duration ? list.duration : from;
     _reverse = Timer.periodic(reverseTick, (timer) {
-      time -= reverseTick;
+      time = _presentAtOrBefore(list, time - reverseTick);
       if (time <= Duration.zero) {
         time = Duration.zero;
         _stopReverse();
@@ -108,6 +128,49 @@ final class SequencePlayback {
     for (final subscription in _subscriptions) {
       unawaited(subscription.cancel());
     }
+  }
+
+  bool _isMissing(Clip clip) => missingSources().contains(clip.sourceId);
+
+  /// The first clip after [clip] whose source is present.
+  Clip? _presentAfter(EditList list, Clip clip) => list.clips
+      .skipWhile((other) => other.id != clip.id)
+      .skip(1)
+      .where((other) => !_isMissing(other))
+      .firstOrNull;
+
+  /// [time], or when it falls in missing clips, the last moment of the
+  /// present clip before them; zero when there is none.
+  Duration _presentAtOrBefore(EditList list, Duration time) {
+    for (
+      var hit = list.locate(time);
+      hit != null && _isMissing(hit.clip);
+      hit = list.locate(time)
+    ) {
+      time = list.startOf(hit.clip.id) - const Duration(microseconds: 1);
+    }
+    return time;
+  }
+
+  /// Stops at the end of the sequence and says so.
+  void _end(EditList list) {
+    _run = null;
+    unawaited(pause());
+    onPosition(list.duration);
+    onEnded();
+  }
+
+  /// Jumps the player to the start of [run]'s clip and plays it.
+  void _requestClip(_Run run) {
+    final source = run.list.sourceOf(run.clip);
+    _request(
+      _Target(
+        source.path,
+        source.frameRate.seekTarget(run.clip.inPoint),
+        play: true,
+        pauseFirst: true,
+      ),
+    );
   }
 
   void _stopReverse() {
@@ -182,34 +245,22 @@ final class SequencePlayback {
     if (run != null && !_busy) _advance(run);
   }
 
-  /// Moves playback on from the clip [run] is in: straight through when the
-  /// next clip continues the same source, else with a jump; stops after the
-  /// last clip.
+  /// Moves playback on from the clip [run] is in to the next present clip:
+  /// straight through when it continues the same source right after, else
+  /// with a jump; stops when no present clip is left.
   void _advance(_Run run) {
-    final clips = run.list.clips;
-    final index = clips.indexWhere((clip) => clip.id == run.clip.id);
-    if (index + 1 >= clips.length) {
-      _run = null;
-      unawaited(pause());
-      onPosition(run.list.duration);
-      onEnded();
-      return;
-    }
     final current = run.clip;
-    final next = clips[index + 1];
+    final next = _presentAfter(run.list, current);
+    if (next == null) return _end(run.list);
+    final clips = run.list.clips;
+    final adjacent = clips.indexOf(next) == clips.indexOf(current) + 1;
     final continues =
-        next.sourceId == current.sourceId && next.inPoint == current.outPoint;
-    _run = _Run(run.list, next, armed: continues);
-    if (continues) return;
-    final source = run.list.sourceOf(next);
-    _request(
-      _Target(
-        source.path,
-        source.frameRate.seekTarget(next.inPoint),
-        play: true,
-        pauseFirst: true,
-      ),
-    );
+        adjacent &&
+        next.sourceId == current.sourceId &&
+        next.inPoint == current.outPoint;
+    final following = _Run(run.list, next, armed: continues);
+    _run = following;
+    if (!continues) _requestClip(following);
   }
 }
 

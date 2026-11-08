@@ -340,13 +340,6 @@ final class EditorController {
   /// Sets the playhead, kept inside the sequence, and shows its frame.
   void _seekTo(Duration time, {bool reveal = true}) {
     _setPlayhead(time, reveal: reveal);
-    // A clip whose file is gone has no frame to show; the player would
-    // only wait for it to load.
-    final clip = _list.locate(_playhead)?.clip;
-    if (clip != null &&
-        _ref.read(missingSourcesProvider).contains(clip.sourceId)) {
-      return;
-    }
     _ref.read(sequencePlaybackProvider).show(_list, _playhead);
   }
 
