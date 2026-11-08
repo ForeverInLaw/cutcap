@@ -149,14 +149,8 @@ FrameRate _outputRate(Source source) {
       (average - nominal.perSecond).abs() <= nominal.perSecond * 0.001) {
     return nominal;
   }
-  final nearest = _standardRates.reduce(
-    (best, rate) =>
-        (rate - average).abs() < (best - average).abs() ? rate : best,
-  );
-  return FrameRate(nearest, 1);
+  return FrameRate.nearest(average, FrameRate.exportStandards)!;
 }
-
-const _standardRates = [24, 25, 30, 50, 60];
 
 /// The first clip's video bitrate, or an estimate of 0.1 bit per pixel when
 /// it is unknown, kept within 1 to 50 Mb/s.

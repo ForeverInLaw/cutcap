@@ -9,6 +9,59 @@ final class FrameRate {
   final int numerator;
   final int denominator;
 
+  /// Rates cameras, screen recorders and encoders produce.
+  static const common = [
+    FrameRate(8, 1),
+    FrameRate(10, 1),
+    FrameRate(12, 1),
+    FrameRate(15, 1),
+    FrameRate(20, 1),
+    FrameRate(24000, 1001),
+    FrameRate(24, 1),
+    FrameRate(25, 1),
+    FrameRate(30000, 1001),
+    FrameRate(30, 1),
+    FrameRate(48, 1),
+    FrameRate(50, 1),
+    FrameRate(60000, 1001),
+    FrameRate(60, 1),
+    FrameRate(90, 1),
+    FrameRate(100, 1),
+    FrameRate(120000, 1001),
+    FrameRate(120, 1),
+    FrameRate(144, 1),
+    FrameRate(240, 1),
+  ];
+
+  /// The rates a variable-rate first clip exports at (the spec's output
+  /// rules).
+  static const exportStandards = [
+    FrameRate(24, 1),
+    FrameRate(25, 1),
+    FrameRate(30, 1),
+    FrameRate(50, 1),
+    FrameRate(60, 1),
+  ];
+
+  /// The rate among [rates] closest to [perSecond] frames per second. With
+  /// a [tolerance], only one within that fraction of its own rate counts;
+  /// null when none does (or [rates] is empty).
+  static FrameRate? nearest(
+    double perSecond,
+    Iterable<FrameRate> rates, {
+    double? tolerance,
+  }) {
+    FrameRate? best;
+    for (final rate in rates) {
+      final distance = (rate.perSecond - perSecond).abs();
+      if (tolerance != null && distance > rate.perSecond * tolerance) continue;
+      if (best == null || distance < (best.perSecond - perSecond).abs()) {
+        best = rate;
+      }
+    }
+    return best;
+  }
+
   /// The rate as a decimal, for display (`29.97`).
   double get perSecond => numerator / denominator;
 

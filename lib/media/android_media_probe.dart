@@ -137,46 +137,15 @@ final class AndroidMediaProbe implements MediaProbe {
     return _closestStandard(perSecond) ?? _rounded(perSecond);
   }
 
-  /// Rates cameras, screen recorders and encoders produce.
-  static const _standardRates = [
-    FrameRate(8, 1),
-    FrameRate(10, 1),
-    FrameRate(12, 1),
-    FrameRate(15, 1),
-    FrameRate(20, 1),
-    FrameRate(24000, 1001),
-    FrameRate(24, 1),
-    FrameRate(25, 1),
-    FrameRate(30000, 1001),
-    FrameRate(30, 1),
-    FrameRate(48, 1),
-    FrameRate(50, 1),
-    FrameRate(60000, 1001),
-    FrameRate(60, 1),
-    FrameRate(90, 1),
-    FrameRate(100, 1),
-    FrameRate(120000, 1001),
-    FrameRate(120, 1),
-    FrameRate(144, 1),
-    FrameRate(240, 1),
-  ];
-
   /// How far a measured rate may stray from a standard one and still be
   /// taken as it: camera timestamps jitter by about a percent.
   static const _standardTolerance = 0.02;
 
-  static FrameRate? _closestStandard(double perSecond) {
-    FrameRate? best;
-    var bestError = _standardTolerance;
-    for (final rate in _standardRates) {
-      final error = (rate.perSecond - perSecond).abs() / rate.perSecond;
-      if (error <= bestError) {
-        best = rate;
-        bestError = error;
-      }
-    }
-    return best;
-  }
+  static FrameRate? _closestStandard(double perSecond) => FrameRate.nearest(
+    perSecond,
+    FrameRate.common,
+    tolerance: _standardTolerance,
+  );
 
   /// [perSecond] to the millihertz, as an exact ratio.
   static FrameRate? _rounded(double perSecond) {
