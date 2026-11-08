@@ -15,8 +15,8 @@ Source _source(String name, {int seconds = 4}) => Source(
   hasAudio: true,
 );
 
-List<String> _paths(EditList? list) => [
-  for (final clip in list!.clips) list.sourceOf(clip).path,
+List<String> _paths(SavedSession saved) => [
+  for (final clip in saved.editList!.clips) saved.editList!.sourceOf(clip).path,
 ];
 
 void main() {
@@ -47,14 +47,39 @@ void main() {
   });
 
   test('has nothing to load before the first save', () async {
-    expect(await store.load(), isNull);
+    expect(await store.load(), isA<NoSavedSession>());
   });
 
-  test('ignores a corrupt file instead of failing', () async {
+  test('sets a corrupt file aside, where later saves leave it', () async {
+    const corrupt = '{"version": 1, "sources": [';
     await file.parent.create(recursive: true);
-    await file.writeAsString('{"version": 1, "sources": [');
+    await file.writeAsString(corrupt);
 
-    expect(await store.load(), isNull);
+    final saved = await store.load();
+    expect(saved.editList, isNull);
+    final keptAs = (saved as UnreadableSession).keptAs!;
+    expect(p.basename(keptAs), startsWith('session.corrupt-'));
+    expect(p.extension(keptAs), '.json');
+
+    await store.save(
+      const EditorSession().addSources([_source('a.mp4')]).editList,
+    );
+    expect(await File(keptAs).readAsString(), corrupt);
+    expect(_paths(await store.load()), ['C:/videos/a.mp4']);
+  });
+
+  test('a save that cannot be written fails; the next one retries', () async {
+    final blocked = SessionStore(() async => File(p.join(file.path, 'x')));
+    final list = const EditorSession().addSources([_source('a.mp4')]).editList;
+    // The session file's folder is a file.
+    await file.parent.create(recursive: true);
+    await file.writeAsString('');
+
+    await expectLater(blocked.save(list), throwsA(isA<FileSystemException>()));
+
+    await file.delete();
+    await blocked.save(list);
+    expect(_paths(await blocked.load()), ['C:/videos/a.mp4']);
   });
 
   test('writes the latest of saves that come faster than the disk', () async {

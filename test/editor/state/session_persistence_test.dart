@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:cutcap/domain/editor_session.dart';
 import 'package:cutcap/editor/state/editor_controller.dart';
+import 'package:cutcap/editor/editor_view_state.dart';
 import 'package:cutcap/editor/state/editor_state.dart';
+import 'package:cutcap/editor/state/view_state_provider.dart';
 import 'package:cutcap/export/export_plan.dart';
 import 'package:cutcap/media/media_probe.dart';
 import 'package:cutcap/player/preview_player.dart';
@@ -49,12 +51,15 @@ void main() {
 
   tearDown(() => dir.delete(recursive: true));
 
-  /// A fresh launch of the editor over the same session file.
-  ProviderContainer launch() => ProviderContainer.test(
+  /// A fresh launch of the editor over the same session file, or over
+  /// [store].
+  ProviderContainer launch({SessionStore? store}) => ProviderContainer.test(
     overrides: [
       previewPlayerProvider.overrideWithValue(player as PreviewPlayer),
       mediaProbeProvider.overrideWithValue(_FakeProbe()),
-      sessionStoreProvider.overrideWithValue(SessionStore(() async => file)),
+      sessionStoreProvider.overrideWithValue(
+        store ?? SessionStore(() async => file),
+      ),
       sourceExistsProvider.overrideWithValue(
         (path) async => onDisk.contains(path),
       ),
@@ -164,11 +169,51 @@ void main() {
     editor.deleteSelected();
     await container.read(sessionStoreProvider).flush();
 
-    final saved = await SessionStore(() async => file).load();
+    final saved = (await SessionStore(() async => file).load()).editList!;
     expect(
-      [for (final clip in saved!.clips) saved.sourceOf(clip).path],
+      [for (final clip in saved.clips) saved.sourceOf(clip).path],
       [_b.path],
     );
+  });
+
+  test('a saved edit that cannot be read is kept aside and told', () async {
+    await file.writeAsString('{"version": 1, "clips": [');
+
+    final container = launch();
+    await container.read(editorControllerProvider).restoreSession();
+
+    expect(spans(container), isEmpty);
+    expect(
+      container.read(editorViewStateProvider).sessionProblem,
+      isA<SessionUnreadable>().having(
+        (problem) => problem.keptAs,
+        'keptAs',
+        startsWith('session.corrupt-'),
+      ),
+    );
+    expect(file.existsSync(), isFalse);
+  });
+
+  test('an autosave that fails is told until a later one works', () async {
+    // The session file's folder is a file, until the test removes it.
+    final blocker = File(p.join(dir.path, 'blocked'))..writeAsStringSync('');
+    final container = launch(
+      store: SessionStore(() async => File(p.join(blocker.path, 's.json'))),
+    );
+    final editor = container.read(editorControllerProvider);
+    await editor.restoreSession();
+    SessionProblem? problem() =>
+        container.read(editorViewStateProvider).sessionProblem;
+
+    await editor.addFiles([_a.path]);
+    await pumpEventQueue();
+    expect(problem(), isA<SessionNotSaved>());
+
+    blocker.deleteSync();
+    await editor.addFiles([_b.path]);
+    await container.read(sessionStoreProvider).flush();
+    await pumpEventQueue();
+    expect(problem(), isNull);
   });
 
   group('a source file that is gone', () {

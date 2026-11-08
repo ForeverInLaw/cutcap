@@ -74,8 +74,15 @@ final class EditorController {
     if (_ref.read(missingSourcesProvider).isNotEmpty) await checkSources();
   }
 
-  void dismissImportProblems() =>
+  /// Hides the notice the status band shows: files that could not be
+  /// added first, then a problem with the autosaved edit.
+  void dismissNotice() {
+    if (_ref.read(importProblemsProvider).isNotEmpty) {
       _ref.read(importProblemsProvider.notifier).set(const []);
+    } else {
+      _ref.read(sessionProblemProvider.notifier).set(null);
+    }
+  }
 
   // Session ----------------------------------------------------------------
 

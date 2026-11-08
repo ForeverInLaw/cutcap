@@ -36,22 +36,36 @@ class StatusArea extends StatelessWidget {
       size: size,
     );
 
+    final dismissNotice = ControlButton(
+      icon: Icons.close_sharp,
+      label: l10n.dismiss,
+      onPressed: actions.onDismissNotice,
+      kind: ControlKind.plain,
+      size: size,
+    );
+
     final unreadable = state.unreadableFiles;
+    final sessionProblem = state.sessionProblem;
     final Widget content = switch (state.export) {
       ExportIdle() when unreadable.isNotEmpty => _StatusPanel(
         key: const ValueKey(#unreadable),
         compact: compact,
         icon: Icons.error_outline_sharp,
         message: l10n.couldNotOpen(unreadable.length, unreadable.join(', ')),
-        buttons: [
-          ControlButton(
-            icon: Icons.close_sharp,
-            label: l10n.dismiss,
-            onPressed: actions.onDismissUnreadable,
-            kind: ControlKind.plain,
-            size: size,
+        buttons: [dismissNotice],
+      ),
+      ExportIdle() when sessionProblem != null => _StatusPanel(
+        key: ValueKey(sessionProblem.runtimeType),
+        compact: compact,
+        icon: Icons.error_outline_sharp,
+        message: switch (sessionProblem) {
+          SessionUnreadable(keptAs: final keptAs?) => l10n.sessionKeptAside(
+            keptAs,
           ),
-        ],
+          SessionUnreadable() => l10n.sessionUnreadable,
+          SessionNotSaved() => l10n.sessionNotSaved,
+        },
+        buttons: [dismissNotice],
       ),
       ExportIdle() when compact => const SizedBox.shrink(),
       ExportIdle() => _Summary(state),

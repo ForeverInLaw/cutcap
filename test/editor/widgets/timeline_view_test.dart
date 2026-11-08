@@ -57,7 +57,7 @@ final class _Intents {
     onReorderStart: (id) => _note('move ${id.value}'),
     onReorderUpdate: reorders.add,
     onReorderEnd: () => _note('move end'),
-    onDismissUnreadable: () {},
+    onDismissNotice: () {},
     onCancelExport: () {},
     onOpenExport: () {},
     onShareExport: () {},

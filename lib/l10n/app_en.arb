@@ -192,6 +192,21 @@
   "@clearTrack": {
     "description": "Button that removes every clip from the track; it can be undone."
   },
+  "sessionKeptAside": "The last edit could not be read and was kept as {fileName}",
+  "@sessionKeptAside": {
+    "description": "Shown at launch when the autosaved edit was corrupt; the editor started empty and the old file was renamed so it is not overwritten. fileName is the renamed file in the app's data folder.",
+    "placeholders": {
+      "fileName": {"type": "String"}
+    }
+  },
+  "sessionUnreadable": "The last edit could not be read",
+  "@sessionUnreadable": {
+    "description": "Shown at launch when the autosaved edit could not be read (and could not be renamed either); the editor started empty."
+  },
+  "sessionNotSaved": "Your edit could not be saved; cutcap tries again with the next change",
+  "@sessionNotSaved": {
+    "description": "Shown when writing the autosave failed, e.g. the disk is full; it goes away once a later save works."
+  },
   "couldNotOpen": "{count, plural, one{{names} could not be opened as a video} other{{count} files could not be opened as videos: {names}}}",
   "@couldNotOpen": {
     "description": "Shown when picked files are not videos this device can play; the other picked files were still added. names lists the file names, comma-separated.",

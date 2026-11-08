@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -15,6 +16,7 @@ import '../../player/media_kit_preview_player.dart';
 import '../../player/preview_player.dart';
 import '../../player/sequence_playback.dart';
 import '../../session/session_store.dart';
+import '../editor_view_state.dart';
 import 'timeline_zoom.dart';
 
 /// The edit and its undo history.
@@ -68,6 +70,10 @@ final sourceExistsProvider = Provider<Future<bool> Function(String path)>(
       ? AndroidDocuments.exists
       : (path) => File(path).exists(),
 );
+
+/// What went wrong with the autosaved edit, until dismissed.
+final sessionProblemProvider =
+    NotifierProvider<Slot<SessionProblem?>, SessionProblem?>(() => Slot(null));
 
 /// Names of the files the last add could not open.
 final importProblemsProvider =
@@ -177,7 +183,7 @@ final class SessionNotifier extends Notifier<EditorSession> {
   EditorSession build() {
     listenSelf((previous, next) {
       if (_autosaving && !identical(previous?.editList, next.editList)) {
-        unawaited(ref.read(sessionStoreProvider).save(next.editList));
+        unawaited(_save(next.editList));
       }
     });
     return const EditorSession();
@@ -185,12 +191,30 @@ final class SessionNotifier extends Notifier<EditorSession> {
 
   EditorSession get _base => _gestureOrigin ?? state;
 
-  /// Continues [saved] (when given and nothing has been edited yet) and
-  /// starts autosaving.
-  void restore(EditList? saved) {
+  /// Saves [list]; a failed save is told until a later one works.
+  Future<void> _save(EditList list) async {
+    final problem = ref.read(sessionProblemProvider.notifier);
+    try {
+      await ref.read(sessionStoreProvider).save(list);
+      if (ref.mounted && problem.state is SessionNotSaved) problem.set(null);
+    } on Object catch (error) {
+      debugPrint('cutcap: could not save the session: $error');
+      if (ref.mounted) problem.set(const SessionNotSaved());
+    }
+  }
+
+  /// Continues the [saved] edit (when there is one and nothing has been
+  /// edited yet) and starts autosaving. A saved edit that could not be read
+  /// is told.
+  void restore(SavedSession saved) {
     final untouched = state.editList.clips.isEmpty && !state.canUndo;
-    if (saved != null && untouched) {
-      state = EditorSession.restored(saved);
+    if (saved.editList case final list? when untouched) {
+      state = EditorSession.restored(list);
+    }
+    if (saved case UnreadableSession(:final keptAs)) {
+      ref
+          .read(sessionProblemProvider.notifier)
+          .set(SessionUnreadable(keptAs == null ? null : p.basename(keptAs)));
     }
     _autosaving = true;
   }

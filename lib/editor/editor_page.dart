@@ -64,7 +64,7 @@ class EditorPage extends ConsumerWidget {
     onReorderStart: editor.beginReorder,
     onReorderUpdate: editor.updateReorder,
     onReorderEnd: editor.endReorder,
-    onDismissUnreadable: editor.dismissImportProblems,
+    onDismissNotice: editor.dismissNotice,
     onCancelExport: export.cancel,
     onOpenExport: export.open,
     onShareExport: export.share,

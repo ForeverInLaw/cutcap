@@ -80,6 +80,7 @@ final editorViewStateProvider = Provider<EditorViewState>((ref) {
     // Drops from Explorer; Android has no desktop to drag from.
     acceptsFileDrop: defaultTargetPlatform == TargetPlatform.windows,
     unreadableFiles: ref.watch(importProblemsProvider),
+    sessionProblem: ref.watch(sessionProblemProvider),
     isTrimming: timelineEnd != null,
   );
 });
