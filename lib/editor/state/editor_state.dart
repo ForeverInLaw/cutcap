@@ -95,7 +95,8 @@ final mediaProbeProvider = Provider<MediaProbe>(
 );
 
 /// Asks the user for videos; paths (Android: content URIs) come back in the
-/// picker's order.
+/// order the picker returns them. The Windows dialog returns them in its
+/// own (shell) order, not the order they were clicked in.
 final videoPickerProvider = Provider<Future<List<String>> Function()>(
   (ref) => Platform.isAndroid ? AndroidDocuments.pick : _pickVideos,
 );
