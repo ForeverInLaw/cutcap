@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../media/thumbnail_cache.dart';
 import 'android_channels.dart';
 
 /// How the Android app gets at videos, over [AndroidChannels.documents]
@@ -20,10 +21,16 @@ abstract final class AndroidDocuments {
       }) ??
       false;
 
-  /// The video's size and modification time, as a thumbnail cache stamp
-  /// (see `fileStamp`); null when it cannot be read.
-  static Future<String?> stamp(String path) =>
-      AndroidChannels.documents.invokeMethod<String>('stamp', {'path': path});
+  /// The video's size and modification time as a thumbnail cache stamp
+  /// (see `fileStamp`), unversioned when its provider reports either not.
+  static Future<VideoStamp> stamp(String path) async =>
+      switch (await AndroidChannels.documents.invokeMethod<Object?>('stamp', {
+        'path': path,
+      })) {
+        {'stamp': final String stamp} => VideoVersion(stamp),
+        {'stamp': null} => const VideoUnversioned(),
+        _ => const VideoGone(),
+      };
 
   /// The videos of the share that launched the app (and any that came
   /// before the editor listened to [shared]), in the order shared.

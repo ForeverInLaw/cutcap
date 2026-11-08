@@ -123,6 +123,25 @@ void main() {
     expect(source.renders, hasLength(1));
   });
 
+  test('renders a video whose versions it cannot tell, keeping nothing '
+      'on disk', () async {
+    final thumbnails = ThumbnailCache(
+      source: source,
+      directory: () async => Directory(p.join(dir.path, 'thumbnails')),
+      stamp: (_) async => const VideoUnversioned(),
+    );
+
+    final frame = await text(thumbnails.thumbnail(videoA, _ms(40), height: 96));
+
+    expect(frame, 'a.mp4@40000/96');
+    expect(
+      Directory(
+        p.join(dir.path, 'thumbnails'),
+      ).listSync(recursive: true).whereType<File>(),
+      isEmpty,
+    );
+  });
+
   test('renders nothing for a video that is gone', () async {
     await File(videoA).delete();
 

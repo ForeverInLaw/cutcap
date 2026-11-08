@@ -26,7 +26,9 @@ final class ThumbnailUnavailable implements Exception {
 ///
 /// Files live under [directory] in a folder per video, named from its
 /// path and its [stamp] (by default [fileStamp]: size and modification
-/// time), so a changed file gets new frames.
+/// time), so a changed file gets new frames. A video whose versions cannot
+/// be told apart ([VideoUnversioned]) is rendered all the same, but its
+/// files are deleted once read: a frame kept on disk could be stale.
 /// Requests made together are rendered together, one pass per video, the
 /// newest first, and only one render runs at a time so the preview keeps
 /// the machine. Decoded images are kept in memory by Flutter's image cache
@@ -41,14 +43,14 @@ final class ThumbnailCache {
   }) : _locate = directory;
 
   final ThumbnailSource _source;
-  final Future<String?> Function(String videoPath) _stamp;
+  final Future<VideoStamp> Function(String videoPath) _stamp;
   final Future<Directory> Function() _locate;
   late final Future<Directory> _directory = _locate();
 
   /// Most frames rendered in one pass.
   final int batchSize;
 
-  final _folders = <String, Future<String?>>{};
+  final _folders = <String, Future<_Folder?>>{};
   final _inFlight = <String, Future<Uint8List>>{};
   final _failed = <String>{};
   final _queue = <_Job>[];
@@ -69,20 +71,27 @@ final class ThumbnailCache {
     if (folder == null) {
       throw ThumbnailUnavailable(videoPath, seek, 'video not found');
     }
-    final file = p.join(folder, '$height-${seek.inMicroseconds}.jpg');
+    final file = p.join(folder.path, '$height-${seek.inMicroseconds}.jpg');
     if (_failed.contains(file)) {
       throw ThumbnailUnavailable(videoPath, seek, 'could not be rendered');
     }
-    return _inFlight[file] ??= _request(videoPath, seek, height, file);
+    return _inFlight[file] ??= _request(
+      videoPath,
+      seek,
+      height,
+      file,
+      keep: folder.keep,
+    );
   }
 
   Future<Uint8List> _request(
     String videoPath,
     Duration seek,
     int height,
-    String file,
-  ) async {
-    final job = _Job(videoPath, height, (seek: seek, file: file));
+    String file, {
+    required bool keep,
+  }) async {
+    final job = _Job(videoPath, height, (seek: seek, file: file), keep: keep);
     _queue.add(job);
     _schedulePump();
     try {
@@ -93,12 +102,15 @@ final class ThumbnailCache {
   }
 
   /// The folder for the video's current contents, or null when it is gone.
-  Future<String?> _folderOf(String videoPath) async {
-    final stamp = await _stamp(videoPath);
-    if (stamp == null) return null;
-    final key = utf8.encode('$videoPath|$stamp');
-    final name = sha1.convert(key).toString().substring(0, 20);
-    return p.join((await _directory).path, name);
+  Future<_Folder?> _folderOf(String videoPath) async {
+    final (String? key, bool keep) = switch (await _stamp(videoPath)) {
+      VideoGone() => (null, false),
+      VideoVersion(:final value) => ('$videoPath|$value', true),
+      VideoUnversioned() => ('$videoPath|unversioned', false),
+    };
+    if (key == null) return null;
+    final name = sha1.convert(utf8.encode(key)).toString().substring(0, 20);
+    return (path: p.join((await _directory).path, name), keep: keep);
   }
 
   /// Runs the queue after the current event, so requests made together
@@ -163,6 +175,7 @@ final class ThumbnailCache {
       final file = File(job.shot.file);
       if (await file.exists()) {
         job.done.complete(await file.readAsBytes());
+        if (!job.keep) await file.delete();
       } else {
         _fail(job, 'not rendered');
       }
@@ -177,22 +190,50 @@ final class ThumbnailCache {
   }
 }
 
+/// Where a video's frames go, and whether they stay there once read.
+typedef _Folder = ({String path, bool keep});
+
 final class _Job {
-  _Job(this.videoPath, this.height, this.shot);
+  _Job(this.videoPath, this.height, this.shot, {required this.keep});
 
   final String videoPath;
   final int height;
   final ThumbnailShot shot;
+
+  /// Whether the rendered file stays on disk for later runs.
+  final bool keep;
   final done = Completer<Uint8List>();
 
   bool sameRender(_Job other) =>
       other.videoPath == videoPath && other.height == height;
 }
 
-/// What tells the file at [path] apart from the same file changed: its size
-/// and modification time; null when there is no such file.
-Future<String?> fileStamp(String path) async {
+/// What the thumbnail cache knows of a video's current contents.
+sealed class VideoStamp {
+  const VideoStamp();
+}
+
+/// The video is gone, or can no longer be read.
+final class VideoGone extends VideoStamp {
+  const VideoGone();
+}
+
+/// The video is there, and [value] changes whenever its contents do.
+final class VideoVersion extends VideoStamp {
+  const VideoVersion(this.value);
+
+  final String value;
+}
+
+/// The video is there, but nothing tells its versions apart (a provider
+/// that reports no size or modification time).
+final class VideoUnversioned extends VideoStamp {
+  const VideoUnversioned();
+}
+
+/// The stamp of the file at [path]: its size and modification time.
+Future<VideoStamp> fileStamp(String path) async {
   final stat = await File(path).stat();
-  if (stat.type == FileSystemEntityType.notFound) return null;
-  return '${stat.size}|${stat.modified.microsecondsSinceEpoch}';
+  if (stat.type == FileSystemEntityType.notFound) return const VideoGone();
+  return VideoVersion('${stat.size}|${stat.modified.microsecondsSinceEpoch}');
 }

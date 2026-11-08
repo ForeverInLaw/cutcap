@@ -49,7 +49,11 @@ class VideoDocuments(
         when (call.method) {
             "pick" -> pick(result)
             "exists" -> background(result) { VideoSource(activity, call.path()).canRead() }
-            "stamp" -> background(result) { VideoSource(activity, call.path()).stamp() }
+            // Null when the video is gone; a null stamp when nothing tells its versions apart.
+            "stamp" -> background(result) {
+                val video = VideoSource(activity, call.path())
+                if (video.canRead()) mapOf("stamp" to video.stamp()) else null
+            }
             "takeShared" -> result.success(drain())
             "listenShared" -> {
                 pushing = true
@@ -169,11 +173,9 @@ class VideoDocuments(
         if (activity.contentResolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission }) return uri
         if (!hasVideoPermission()) return null
         if (uri.authority == MediaStore.AUTHORITY) return uri
-        val media = try {
+        // Null for a document MediaStore does not know.
+        val media = orNullIfRefused("find $uri in MediaStore") {
             if (DocumentsContract.isDocumentUri(activity, uri)) MediaStore.getMediaUri(activity, uri) else null
-        } catch (_: Exception) {
-            // Not a document MediaStore knows.
-            null
         } ?: sameVideoInMediaStore(uri)
         return media?.takeIf { VideoSource(activity, it.toString()).canRead() }
     }
@@ -181,12 +183,9 @@ class VideoDocuments(
     /** Looks the video up in MediaStore by its name and size. */
     private fun sameVideoInMediaStore(uri: Uri): Uri? {
         val resolver = activity.contentResolver
-        val nameAndSize: Pair<String, Long>? = try {
+        val nameAndSize: Pair<String, Long>? = orNullIfRefused("query $uri") {
             resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)
                 ?.use { if (it.moveToFirst() && !it.isNull(0)) it.getString(0) to it.getLong(1) else null }
-        } catch (_: Exception) {
-            // The sender's provider does not answer queries.
-            null
         }
         val (name, size) = nameAndSize ?: return null
         val collection = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
