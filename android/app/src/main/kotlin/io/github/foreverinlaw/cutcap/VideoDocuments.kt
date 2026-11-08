@@ -96,8 +96,16 @@ class VideoDocuments(
 
     // Sharing ----------------------------------------------------------------
 
-    /** Takes the videos of an `ACTION_SEND`/`ACTION_SEND_MULTIPLE` intent. */
+    /**
+     * Takes the videos of an `ACTION_SEND`/`ACTION_SEND_MULTIPLE` intent. The
+     * sender's extras and providers are not ours, so a share that fails to
+     * read is logged and dropped rather than taking the app down.
+     */
     fun onIntent(intent: Intent) {
+        guarded("taking a share") { take(intent) }
+    }
+
+    private fun take(intent: Intent) {
         val readGranted = (intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0
         val uris = shared(intent).filter { uri ->
             ShareFilter.accepts(uri.scheme, uri.authority, readGranted, ::isOwnAuthority).also {
@@ -143,10 +151,13 @@ class VideoDocuments(
         else -> emptyList()
     }
 
-    /** Swaps temporary URIs for durable ones off the main thread, then delivers. */
+    /**
+     * Swaps temporary URIs for durable ones off the main thread, then
+     * delivers; a URI whose provider fails is delivered as it came.
+     */
     private fun keep(uris: List<Uri>) = io.execute {
-        val kept = uris.map { durable(it) ?: it }.map(Uri::toString)
-        main.post { deliver(kept) }
+        val kept = uris.map { uri -> guarded("keeping $uri") { durable(uri) }.getOrNull() ?: uri }
+        main.post { deliver(kept.map(Uri::toString)) }
     }
 
     private fun deliver(uris: List<String>) {
@@ -157,13 +168,15 @@ class VideoDocuments(
 
     // Keeping access ----------------------------------------------------------
 
-    /** Keeps the grant across restarts; false when the sender did not allow it. */
-    private fun persist(uri: Uri): Boolean = try {
-        activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        true
-    } catch (_: SecurityException) {
-        false
-    }
+    /** Keeps the grant across restarts; false when the sender did not allow it (or it failed). */
+    private fun persist(uri: Uri): Boolean = guarded("persisting the grant for $uri") {
+        try {
+            activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            true
+        } catch (_: SecurityException) {
+            false
+        }
+    }.getOrDefault(false)
 
     /**
      * The same video's MediaStore URI, readable for as long as the video
@@ -218,9 +231,12 @@ class VideoDocuments(
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
 
+    /** Runs [work] off the main thread; whatever a provider throws goes back to Dart as an error. */
     private fun background(result: MethodChannel.Result, work: () -> Any?) = io.execute {
-        val value = work()
-        main.post { result.success(value) }
+        val outcome = guarded("documents call") { work() }
+        main.post {
+            outcome.fold(result::success) { error -> result.error("provider_failed", error.toString(), null) }
+        }
     }
 
     private fun MethodCall.path(): String = argument<String>("path")!!

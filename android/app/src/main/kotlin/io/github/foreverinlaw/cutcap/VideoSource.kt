@@ -7,9 +7,7 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.MediaStore
 import android.provider.OpenableColumns
-import android.util.Log
 import java.io.File
-import java.io.FileNotFoundException
 
 /**
  * A video as the Dart side names it: a `content://` URI string (what the
@@ -71,24 +69,3 @@ class VideoSource(private val context: Context, private val path: String) {
     }
 }
 
-/**
- * [block], or null (logged) when a content provider refuses it: the video
- * is gone ([FileNotFoundException]), the read grant was lost
- * ([SecurityException]), or the provider does not know the URI or a
- * column ([IllegalArgumentException]). Anything else is a bug and throws.
- */
-inline fun <T> orNullIfRefused(what: String, block: () -> T?): T? = try {
-    block()
-} catch (error: FileNotFoundException) {
-    refused(what, error)
-} catch (error: SecurityException) {
-    refused(what, error)
-} catch (error: IllegalArgumentException) {
-    refused(what, error)
-}
-
-/** Logs why a provider refused [what]; always null. */
-fun refused(what: String, error: Exception): Nothing? {
-    Log.w("cutcap", "Provider refused to $what: $error")
-    return null
-}
